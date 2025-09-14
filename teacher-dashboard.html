@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="az">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Müəllim Paneli</title>
+    <link rel="stylesheet" href="teacher.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+</head>
+
+<body>
+    <aside class="sidebar">
+        <div>
+            <div class="logo">
+                <a href="teacher-dashboard.html"><i class="fas fa-school"></i> BirSınaq</a>
+            </div>
+            <nav class="main-nav">
+                <ul>
+                    <li class="nav-item active">
+                        <a href="#exams-to-grade"><i class="fas fa-marker fa-fw"></i> Yoxlanılacaqlar</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        <a href="login.html" class="logout-btn"><i class="fas fa-sign-out-alt fa-fw"></i> Çıxış</a>
+    </aside>
+
+    <main class="dashboard-content">
+        <header class="dashboard-header">
+            <h1 id="welcome-message">Yoxlanılacaq Cavablar</h1>
+        </header>
+        <section id="teacher-stats-container" class="stats-grid">
+        </section>
+
+        <section id="exams-to-grade" class="dashboard-section active">
+            <div id="pending-reviews-container">
+                <p>Yüklənir...</p>
+            </div>
+        </section>
+    </main>
+    <script src="teacher.js"></script>
+</body>
+
+</html>

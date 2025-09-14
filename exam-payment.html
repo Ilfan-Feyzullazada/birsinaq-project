@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ödəniş Səhifəsi</title>
+    <link rel="stylesheet" href="exam-payment.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+
+    <header class="header">
+        <div class="logo">
+            <h1><a href="index.html">BirSınaq</a></h1>
+        </div>
+    </header>
+
+    <main class="payment-container">
+        <div class="payment-card">
+            <h2>İmtahan Ödənişi</h2>
+            <form id="payment-form">
+                <div class="form-group">
+                    <label for="name">Ad və Soyad</label>
+                    <input type="text" id="name" name="studentName" required>
+                </div>
+                <div class="form-group">
+                    <label for="contact">Əlaqə Nömrəsi</label>
+                    <input type="text" id="contact" name="contact" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">E-poçt</label>
+                    <input type="email" id="email" name="studentEmail" required>
+                </div>
+                
+                <div class="payment-info">
+    <p>Ödəniləcək məbləğ: <strong id="exam-price-display">...</strong></p>
+                 </div>
+
+                <button type="submit" class="submit-btn">Ödəniş Et</button>
+            </form>
+        </div>
+    </main>
+
+
+    </main>
+
+    <script src="exam-payment.js"></script>
+
+
+
+
+</body>
+</html>

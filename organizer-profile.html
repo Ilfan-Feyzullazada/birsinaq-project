@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Təşkilatçı Paneli</title>
+    <link rel="stylesheet" href="organizer.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+</head>
+<body>
+
+    <header class="header">
+        <div class="logo"><h1><a href="index.html">BirSınaq</a></h1></div>
+        <nav class="auth-buttons">
+            <a href="#" id="logout-btn" class="profile-btn">Hesabdan Çıx</a>
+        </nav>
+    </header>
+
+    <main class="organizer-dashboard">
+        <div class="dashboard-header">
+            <h1 id="welcome-message">Yüklənir...</h1>
+            <p>Hesabınıza aid ümumi göstəricilər və məlumatlar.</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card balance">
+                <div class="icon"><i class="fas fa-wallet"></i></div>
+                <div class="stat-card-info">
+                    <div class="label">Cari Balans</div>
+                    <div id="balance-value" class="value">0.00 AZN</div>
+                </div>
+            </div>
+            <div class="stat-card students">
+                <div class="icon"><i class="fas fa-users"></i></div>
+                <div class="stat-card-info">
+                    <div class="label">Dəvət Edilən Şagird</div>
+                    <div id="student-count-value" class="value">0</div>
+                </div>
+            </div>
+            <div class="stat-card exams">
+                <div class="icon"><i class="fas fa-file-alt"></i></div>
+                <div class="stat-card-info">
+                    <div class="label">Verilən İmtahan Sayı</div>
+                    <div id="exam-count-value" class="value">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <div class="content-card">
+                <h3>Şəxsi Məlumatlar</h3>
+                <div class="info-item">
+                    <span class="label">Ad Soyad</span>
+                    <span id="display-name" class="value">Yüklənir...</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">E-poçt</span>
+                    <span id="display-email" class="value">Yüklənir...</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Əlaqə</span>
+                    <span id="display-contact" class="value">Yüklənir...</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Bank Kartı</span>
+                    <span id="display-card" class="value">Yüklənir...</span>
+                </div>
+                
+                <div class="edit-actions">
+                    <button id="edit-profile-btn" class="edit-btn">Məlumatları Dəyişdir</button>
+                </div>
+            </div>
+
+            <div class="content-card">
+                 <h3>Dəvət Linki</h3>
+                 <div class="invite-link-box">
+                    <p>Şagirdləri dəvət etmək üçün şəxsi linkiniz:</p>
+                    <div class="link-container">
+                        <input type="text" id="inviteLink" value="Linkiniz yaradılır..." readonly>
+                        <button class="copy-btn" onclick="copyLink()" title="Linki Kopyala"><i class="fas fa-copy"></i></button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="content-card table-wrapper">
+                <h3>Dəvət Edilən Şagirdlərin Nəticələri</h3>
+                <div id="student-list-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Şagird</th>
+                                <th>İmtahan</th>
+                                <th>Nəticə</th>
+                                <th>Tarix</th>
+                            </tr>
+                        </thead>
+                        <tbody id="student-list-body">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Məlumatları Redaktə Et</h2>
+            <form id="edit-form">
+                <div class="form-group">
+                    <label for="edit-name">Ad və Soyad</label>
+                    <input type="text" id="edit-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-contact">Əlaqə Nömrəsi</label>
+                    <input type="text" id="edit-contact" name="contact" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-card">Bank Kartı (16 rəqəm)</label>
+                    <input type="text" id="edit-card" name="bank_account" maxlength="16" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-email">E-poçt</label>
+                    <input type="email" id="edit-email" name="email" required>
+                </div>
+                <button type="submit" class="save-btn">Dəyişiklikləri Yadda Saxla</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="organizer-profile.js"></script>
+</body>
+</html>

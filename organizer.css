@@ -1,0 +1,193 @@
+/* organizer.css (YENİ, PROFESSİONAL VƏ ƏTRAFLI DİZAYN) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    --primary-color: #4A90E2; /* Daha dərin mavi */
+    --success-color: #50E3C2; /* Firuzəyi */
+    --text-color-dark: #2c3e50; /* Tünd göy-boz */
+    --text-color-light: #8492a6;
+    --card-bg-color: #ffffff;
+    --body-bg-color: #f7f8fc;
+    --border-color: #e2e8f0;
+    --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --border-radius: 12px;
+}
+
+* { box-sizing: border-box; }
+
+html {
+    overflow-x: hidden;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #333;
+    background-color: #fff; 
+    position: relative; 
+    z-index: 0;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-image: url('logo-pattern.png');
+    background-repeat: repeat;
+    background-size: 170px; 
+    filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
+    opacity: 0.3;
+    transform: rotate(-30deg) scale(1.5);
+    z-index: -1;
+}
+
+.header {
+    background-color: var(--card-bg-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    padding: 15px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.header .logo h1 a { text-decoration: none; color: var(--primary-color); font-size: 28px; font-weight: 700; }
+
+.profile-btn {
+    text-decoration: none;
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 14px;
+    border: 2px solid var(--primary-color);
+    padding: 8px 20px;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+}
+.profile-btn:hover { background-color: var(--primary-color); color: #fff; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3); }
+
+.organizer-dashboard { max-width: 1400px; margin: 40px auto; padding: 0 30px; }
+.dashboard-header h1 { font-size: 2.25rem; font-weight: 700; margin: 0; }
+.dashboard-header p { font-size: 1.125rem; color: var(--text-color-light); margin-top: 5px; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-bottom: 40px; }
+.stat-card { background: var(--card-bg-color); border-radius: var(--border-radius); padding: 25px; box-shadow: var(--shadow); display: flex; align-items: flex-start; transition: all 0.3s ease; }
+.stat-card:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+.stat-card .icon { font-size: 2.25rem; margin-right: 20px; height: 64px; width: 64px; min-width: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.stat-card.balance .icon { background-color: rgba(80, 227, 194, 0.1); color: var(--success-color); }
+.stat-card.students .icon { background-color: rgba(253, 126, 20, 0.1); color: #fd7e14; }
+.stat-card.exams .icon { background-color: rgba(74, 144, 226, 0.1); color: var(--primary-color); }
+.stat-card-info .label { font-size: 1rem; color: var(--text-color-light); margin-bottom: 5px; }
+.stat-card-info .value { font-size: 2.5rem; font-weight: 700; line-height: 1.2; }
+
+.dashboard-content { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; align-items: flex-start; }
+.content-card { background-color: var(--card-bg-color); border-radius: var(--border-radius); padding: 30px; box-shadow: var(--shadow); }
+.content-card h3 { margin-top: 0; font-size: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px; }
+
+.info-item { display: flex; justify-content: space-between; padding: 14px 0; font-size: 1rem; }
+.info-item .label { font-weight: 500; color: var(--text-color-light); }
+.info-item .value { font-weight: 600; text-align: right; }
+.invite-link-box { margin-top: 25px; }
+.invite-link-box p { font-weight: 600; margin-bottom: 10px; }
+.link-container { display: flex; }
+#inviteLink { width: 100%; padding: 10px 15px; border: 2px solid var(--border-color); border-radius: 8px 0 0 8px; font-size: 1rem; background-color: var(--body-bg-color); transition: border-color 0.3s; }
+#inviteLink:focus { outline: none; border-color: var(--primary-color); }
+.copy-btn { padding: 0 20px; border: 2px solid var(--primary-color); background-color: var(--primary-color); color: white; cursor: pointer; border-radius: 0 8px 8px 0; transition: background-color 0.3s; font-size: 1.2rem; }
+.copy-btn:hover { background-color: #357ABD; }
+
+/* YENİ: REDAKTƏ DÜYMƏSİ ÜÇÜN STİL */
+.edit-actions { margin-top: 25px; text-align: center; }
+.edit-btn {
+    background-color: #f8f9fa;
+    color: var(--text-color-dark);
+    border: 1px solid var(--border-color);
+    padding: 10px 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.edit-btn:hover { background-color: var(--border-color); }
+
+/* YENİ: MODAL (POP-UP) PƏNCƏRƏSİ ÜÇÜN STİLLƏR */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+}
+.modal-content {
+    background-color: #fff;
+    margin: 10% auto;
+    padding: 40px;
+    border-radius: var(--border-radius);
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    position: relative;
+}
+.close-btn {
+    color: #aaa;
+    position: absolute;
+    top: 15px;
+    right: 25px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.close-btn:hover, .close-btn:focus { color: black; }
+.modal-content h2 { margin-top: 0; color: var(--primary-color); }
+.form-group { margin-bottom: 20px; }
+.form-group label { display: block; font-weight: 600; margin-bottom: 8px; }
+.form-group input { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 1rem; }
+.save-btn { width: 100%; padding: 15px; background-color: var(--success-color); color: #fff; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background-color 0.3s; }
+.save-btn:hover { background-color: #48CFAF; }
+
+.table-wrapper { grid-column: 1 / -1; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+thead { background-color: var(--body-bg-color); }
+th { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-color-light); }
+tbody tr:hover { background-color: #fafdff; }
+td .student-name { font-weight: 600; }
+
+/* ================================================================ */
+/* === Təşkilatçı Paneli üçün YEKUN VƏ DÜZGÜN KOD === */
+/* ================================================================ */
+
+html {
+    overflow-x: hidden;
+}
+
+body {
+    background-color: #fff; 
+    position: relative; 
+    z-index: 0;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-image: url('logo-pattern.png');
+    background-repeat: repeat;
+    background-size: 170px; 
+    filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
+    opacity: 0.3;
+    transform: rotate(-30deg) scale(1.5);
+    z-index: -1;
+}

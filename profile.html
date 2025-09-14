@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profil</title>
+    <link rel="stylesheet" href="profile.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <header class="header">
+        <div class="logo">
+            <h1><a href="index.html">BirSınaq</a></h1>
+        </div>
+    </header>
+
+    <main class="profile-container">
+        <div class="profile-card">
+            <h2>Profil Məlumatları</h2>
+            <div id="profile-display" class="profile-info-grid">
+                <div class="info-item">
+                    <span class="info-label">Ad və Soyad:</span>
+                    <span class="info-value" id="display-name">Yüklənir...</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Əlaqə:</span>
+                    <span class="info-value" id="display-contact">Yüklənir...</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Oxuduğu Məktəb:</span>
+                    <span class="info-value" id="display-school">Yüklənir...</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Sinif:</span>
+                    <span class="info-value" id="display-class">Yüklənir...</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Bölmə:</span>
+                    <span class="info-value" id="display-department">Yüklənir...</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Xarici Dil:</span>
+                    <span class="info-value" id="display-language">Yüklənir...</span>
+                </div>
+            </div>
+            
+            <div id="profile-edit" class="profile-edit-form" style="display: none;">
+                <div class="form-group">
+                    <label for="edit-name">Ad və Soyad</label>
+                    <input type="text" id="edit-name" name="name">
+                </div>
+                <div class="form-group">
+                    <label for="edit-contact">Əlaqə</label>
+                    <input type="text" id="edit-contact" name="contact">
+                </div>
+                <div class="form-group">
+                    <label for="edit-school">Oxuduğu Məktəb</label>
+                    <input type="text" id="edit-school" name="school">
+                </div>
+                <div class="form-group">
+                    <label for="edit-class">Sinif</label>
+                    <input type="text" id="edit-class" name="class">
+                </div>
+                <div class="form-group">
+                    <label for="edit-department">Bölmə</label>
+                    <input type="text" id="edit-department" name="department">
+                </div>
+                <div class="form-group">
+                    <label for="edit-language">Xarici Dil</label>
+                    <input type="text" id="edit-language" name="language">
+                </div>
+                <button id="save-btn" class="save-btn">Dəyişiklikləri Yadda Saxla</button>
+            </div>
+
+            <a href="#" id="edit-toggle-btn" class="edit-btn">Məlumatları Dəyişdir</a>
+        </div>
+        
+        <div class="accordion-container">
+            <button class="accordion-header">
+                <h3>Aldığı İmtahanlar</h3>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="accordion-content">
+                <ul class="exam-list">
+
+                 <ul class="exam-list" id="exam-history-list">
+                </ul>
+            </div>
+        </div>
+
+        <div class="accordion-container">
+            <button class="accordion-header">
+                <h3>Statistika</h3>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="accordion-content">
+                <div class="chart-container">
+                    <canvas id="examChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <script src="script.js"></script>
+    
+</body>
+</html>

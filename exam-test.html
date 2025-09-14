@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sınaq İmtahanı</title>
+    <link rel="stylesheet" href="exam-test.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+
+    <header class="header">
+        <div class="logo">
+            <h1><a href="index.html">BirSınaq</a></h1>
+        </div>
+    </header>
+
+    <main class="exam-test-container">
+        <div class="test-header">
+            <h2 id="exam-title">Sınaq İmtahanı: Buraxılış (10. Sinif)</h2>
+            <div id="student-info">
+                <span class="info-label">Şagird:</span>
+                <span id="student-name" class="info-value"></span>
+            </div>
+            <div class="timer">Vaxt: <span id="time">90:00</span></div>
+        </div>
+
+        <div class="test-content">
+            <div class="question-navigation">
+                <div class="subject-nav">
+                    <button class="subject-btn active" data-subject="Azərbaycan dili">Azərbaycan dili</button>
+                    <button class="subject-btn" data-subject="Riyaziyyat">Riyaziyyat</button>
+                    <button class="subject-btn" data-subject="Kimya">Kimya</button>
+                </div>
+                <div class="question-numbers" id="question-numbers">
+                    </div>
+            </div>
+
+            <div class="questions-block" id="questions-block">
+                </div>
+        </div>
+
+        <div class="exam-footer">
+            <button id="finish-exam-btn" class="finish-exam-btn">İmtahanı Bitir</button>
+        </div>
+    </main>
+
+    <div id="resultModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <div id="result-details">
+                <h2 id="result-title">Nəticələr</h2>
+                <div id="subject-results">
+                    </div>
+                <div id="total-results">
+                    </div>
+            </div>
+            <a href="exam.html" class="new-exam-btn">Yeni İmtahan Seç</a>
+        </div>
+    </div>
+    
+    <script src="exam-test.js"></script>
+
+</body>
+</html>

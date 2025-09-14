@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İmtahan Nəticəsi</title>
+    <link rel="stylesheet" href="result.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+    <header class="header">
+        <div class="logo">
+            <h1><a href="index.html">BirSınaq</a></h1>
+        </div>
+    </header>
+
+    <main class="result-page-container">
+        <div class="result-card">
+            <h2>İmtahan Nəticəsi</h2>
+            <div id="exam-details" class="exam-details"></div>
+
+            <div id="summary-stats-container" class="summary-stats">
+                <div class="stat-item">
+                    <h4>Yekun Bal</h4>
+                    <p class="final-score" id="final-score-value">...</p>
+                </div>
+                <div class="stat-item">
+                    <h4>Düzgün Cavablar</h4>
+                    <p id="correct-count">...</p>
+                </div>
+                <div class="stat-item">
+                    <h4>Səhv Cavablar</h4>
+                    <p id="incorrect-count">...</p>
+                </div>
+                <div class="stat-item">
+                    <h4>Boş Buraxılanlar</h4>
+                    <p id="unanswered-count">...</p>
+                </div>
+            </div>
+            
+            <div id="result-container">
+                <p>Nəticələr yüklənir...</p>
+            </div>
+
+            <div class="certificate-section">
+                <button id="download-cert-btn">Sertifikatı Yüklə (PDF)</button>
+            </div>
+        </div>
+    </main>
+
+    <div id="certificate-template" class="certificate-template">
+        <h1>SERTİFİKAT</h1>
+        <p class="cert-intro">Bu sertifikat təqdim olunur</p>
+        <h2 class="cert-name" id="cert-name">[AD SOYAD]</h2>
+        <p class="cert-body">
+            "<span id="cert-exam-title">[İmtahan Adı]</span>" imtahanında iştirak etdiyinə görə.
+        </p>
+        <div class="cert-details">
+            <p><strong>Tarix:</strong> <span id="cert-date">[Tarix]</span></p>
+            <p><strong>Yekun Bal:</strong> <span id="cert-score">[Bal]</span></p>
+        </div>
+        <p class="cert-footer">BirSınaq Onlayn İmtahan Platforması</p>
+    </div>
+
+    <script src="result.js"></script>
+
+
+
+
+</body>
+</html>

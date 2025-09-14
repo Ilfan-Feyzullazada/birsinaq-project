@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="az">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Paneli</title>
+    <link rel="stylesheet" href="admin-dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <div class="logo"><a href="admin-dashboard.html"><i class="fas fa-tools"></i> Admin Paneli</a></div>
+        <nav class="main-nav">
+            <ul>
+                <li class="nav-item active"><a href="#exams"><i class="fas fa-file-alt"></i> İmtahanlar</a></li>
+                <li class="nav-item"><a href="#students"><i class="fas fa-user-graduate"></i> Şagirdlər</a></li>
+                <li class="nav-item"><a href="#organizers"><i class="fas fa-users"></i> Təşkilatçılar</a></li>
+                <li class="nav-item"><a href="#teachers"><i class="fas fa-user-tie"></i> Müəllim Qeydiyyatı</a></li>
+                <li class="nav-item"><a href="#create-exam"><i class="fas fa-plus-circle"></i> İmtahan Yarat</a></li>
+                <li class="nav-item"><a href="#settings"><i class="fas fa-cog"></i> Ayarlar</a></li>
+            </ul>
+        </nav>
+        <a href="#" id="admin-logout-btn" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Çıxış</a>
+    </aside>
+
+    <main class="dashboard-content">
+        <header class="dashboard-header">
+            <h1>Xoş gəlmisiniz, Admin!</h1>
+        </header>
+
+        <section id="exams" class="dashboard-section active">
+            <h2>Mövcud İmtahanlar</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>İmtahan Adı</th>
+                            <th>Sualların Sayı</th>
+                            <th>Status</th>
+                            <th>Əməliyyatlar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="exams-table-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="students" class="dashboard-section">
+            <h2>Şagirdlər</h2>
+
+            <div class="table-container" style="margin-bottom: 40px;">
+                <h3>Qeydiyyatlı Şagirdlər</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ad Soyad</th>
+                            <th>E-poçt</th>
+                            <th>Məktəb</th>
+                            <th>Sinif</th>
+                            <th>İmtahan Sayı</th>
+                        </tr>
+                    </thead>
+                    <tbody id="registered-students-table-body"></tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <h3>Qonaq İştirakçılar (Hesaba bağlanmamış)</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ad</th>
+                            <th>E-poçt</th>
+                            <th>İmtahan</th>
+                            <th>Nəticə</th>
+                            <th>Tarix</th>
+                        </tr>
+                    </thead>
+                    <tbody id="guest-submissions-table-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="organizers" class="dashboard-section">
+            <h2>Təşkilatçılar</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ad Soyad</th>
+                            <th>E-poçt</th>
+                            <th>Əlaqə Nömrəsi</th>
+                            <th>Bank Kartı</th>
+                            <th>Balans (AZN)</th>
+                            <th>Bonus Məbləği (AZN)</th>
+                            <th>Əməliyyatlar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="organizers-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="teachers" class="dashboard-section">
+            <h2>Müəllimlərin İdarə Edilməsi</h2>
+
+            <div class="table-container" style="margin-bottom: 40px;">
+                <h3>Mövcud Müəllimlər</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ad Soyad</th>
+                            <th>E-poçt</th>
+                            <th>İxtisas (Fənn)</th>
+                            <th>Əməliyyatlar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teachers-table-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="form-card">
+                <h3>Yeni Müəllim Yarat</h3>
+                <form id="create-teacher-form">
+                    <div class="form-group">
+                        <label for="teacher-name">Müəllimin Adı və Soyadı</label>
+                        <input type="text" id="teacher-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacher-email">Müəllimin E-poçtu</label>
+                        <input type="email" id="teacher-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacher-subject">İxtisas (Fənn)</label>
+                        <select id="teacher-subject" required>
+                            <option value="">Fənn seçin...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="teacher-password">Şifrə</label>
+                        <input type="password" id="teacher-password" required>
+                    </div>
+                    <button type="submit" class="submit-btn">Yarat</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="create-exam" class="dashboard-section">
+            <h2 id="exam-form-title">Yeni İmtahan Yarat</h2>
+            <div class="form-card">
+                <form id="create-exam-form">
+                    <div class="form-group">
+                        <label for="exam-title">İmtahan Başlığı (məs: Sınaq İmtahanı #5)</label>
+                        <input type="text" id="exam-title" required>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="exam-type">İmtahan Növü</label>
+                            <div class="select-with-add">
+                                <select id="exam-type" required></select>
+                                <button type="button" class="add-new-meta-btn" data-type="exam-types"
+                                    data-name="İmtahan Növü">+</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="class-name">Sinif</label>
+                            <div class="select-with-add">
+                                <select id="class-name" required></select>
+                                <button type="button" class="add-new-meta-btn" data-type="class-names"
+                                    data-name="Sinif">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="exam-duration">Müddət (dəqiqə ilə)</label>
+                        <input type="number" id="exam-duration" min="1" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-price">Qiymət (AZN)</label>
+                        <input type="number" id="exam-price" min="0" step="0.01" value="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exam-video-url">İmtahan üçün Ümumi Videoizah Linki (YouTube)</label>
+                        <input type="url" id="exam-video-url" placeholder="https://www.youtube.com/watch?v=...">
+                    </div>
+
+
+
+                    <div class="form-group">
+                        <label>Dərc Olunma Statusu</label>
+                        <div class="radio-group">
+                            <label><input type="radio" name="publishStatus" value="immediate" checked> Dərhal Dərc
+                                Et</label>
+                            <label><input type="radio" name="publishStatus" value="scheduled"> Tarixə Planla</label>
+                        </div>
+                    </div>
+                    <div class="form-group" id="publish-date-container" style="display: none;">
+                        <label for="publish-date">Dərc Olunma Tarixi və Vaxtı</label>
+                        <input type="datetime-local" id="publish-date">
+                    </div>
+
+                    <hr class="form-hr">
+                    <h3>Suallar</h3>
+                    <div id="questions-container"></div>
+                    <button type="button" id="add-question-btn" class="add-btn"><i class="fas fa-plus"></i> Sual Əlavə
+                        Et</button>
+                    <hr class="form-hr">
+
+                    <button type="submit" id="exam-submit-btn" class="submit-btn">Yadda Saxla</button>
+                </form>
+            </div>
+        </section>
+
+        <section id="settings" class="dashboard-section">
+            <h2>Ayarlar</h2>
+            <div class="settings-grid">
+                <div class="form-card">
+                    <h3>Şifrəni Dəyişdir</h3>
+                    <form id="change-password-form">
+                        <div class="form-group">
+                            <label for="current-password">Mövcud Şifrə</label>
+                            <div class="input-group">
+                                <i class="fas fa-lock"></i>
+                                <input type="password" id="current-password" required>
+                                <i class="fas fa-eye-slash toggle-password"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-password">Yeni Şifrə</label>
+                            <div class="input-group">
+                                <i class="fas fa-key"></i>
+                                <input type="password" id="new-password" required>
+                                <i class="fas fa-eye-slash toggle-password"></i>
+                            </div>
+                            <div class="password-strength-meter">
+                                <div class="strength-bar"></div>
+                                <p class="strength-text"></p>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-password">Yeni Şifrəni Təsdiqlə</label>
+                            <div class="input-group">
+                                <i class="fas fa-key"></i>
+                                <input type="password" id="confirm-password" required>
+                                <i class="fas fa-eye-slash toggle-password"></i>
+                            </div>
+                        </div>
+                        <button type="submit" class="submit-btn">Yadda Saxla</button>
+                    </form>
+                </div>
+                <div class="info-card">
+                    <h3>Təhlükəsizlik Məlumatı</h3>
+                    <ul>
+                        <li><i class="fas fa-check-circle"></i> Şifrəniz ən az 8 simvoldan ibarət olmalıdır.</li>
+                        <li><i class="fas fa-check-circle"></i> Güclü şifrə üçün böyük/kiçik hərflər, rəqəmlər və
+                            simvollardan istifadə edin.</li>
+                        <li><i class="fas fa-check-circle"></i> Şifrənizi heç kimlə paylaşmayın və mütəmadi olaraq
+                            yeniləyin.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="organizer-edit-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span id="close-modal-btn" class="close-btn">&times;</span>
+            <h2>Təşkilatçı Məlumatlarını Redaktə Et</h2>
+            <form id="organizer-edit-form">
+                <input type="hidden" id="edit-org-id">
+                <div class="form-group">
+                    <label for="edit-org-name">Ad və Soyad</label>
+                    <input type="text" id="edit-org-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-org-email">E-poçt</label>
+                    <input type="email" id="edit-org-email" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-org-contact">Əlaqə Nömrəsi</label>
+                    <input type="text" id="edit-org-contact" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-org-bank">Bank Kartı</label>
+                    <input type="text" id="edit-org-bank" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-org-commission">Bonus Məbləği (AZN)</label>
+                    <input type="number" id="edit-org-commission" step="0.01" min="0" required>
+                </div>
+                <button type="submit" class="submit-btn">Yadda Saxla</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="admin-dashboard.js"></script>
+
+</body>
+
+</html>

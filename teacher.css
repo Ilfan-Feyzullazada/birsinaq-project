@@ -1,0 +1,454 @@
+/* teacher.css (SİZİN DİZAYNINIZ + YENİ AKKORDEON SİSTEMİ İLƏ MÖHTƏŞƏM VERSİYA) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    --primary-color: #0d6efd;
+    --card-bg: #ffffff;
+    --body-bg: #f8f9fa;
+    --border-color: #dee2e6;
+    --text-dark: #212529;
+    --text-light: #6c757d;
+    --success-color: #198754;
+    --shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.07);
+    --hover-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.1);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    overflow-x: hidden;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #333;
+    background-color: #fff; 
+    position: relative; 
+    z-index: 0;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-image: url('logo-pattern.png');
+    background-repeat: repeat;
+    background-size: 170px; 
+    filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
+    opacity: 0.3;
+    transform: rotate(-30deg) scale(1.5);
+    z-index: -1;
+}
+
+/* SİZİN YAN MENYU VƏ ÜMUMİ GÖRÜNÜŞ STİLLƏRİNİZ (SAXLANILDI) */
+.sidebar {
+    width: 260px;
+    background-color: var(--card-bg);
+    border-right: 1px solid var(--border-color);
+    height: 100vh;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    z-index: 100;
+}
+
+.sidebar .logo a {
+    text-decoration: none;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 40px;
+    padding: 10px;
+}
+
+.sidebar .main-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sidebar .main-nav .nav-item a {
+    text-decoration: none;
+    color: var(--text-light);
+    font-size: 16px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 8px;
+    margin-bottom: 5px;
+    transition: all 0.2s ease-in-out;
+}
+
+.sidebar .main-nav .nav-item.active a,
+.sidebar .main-nav .nav-item a:hover {
+    background-color: #e7f3ff;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.sidebar .logout-btn {
+    margin-top: auto;
+    text-decoration: none;
+    color: #dc3545;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    border-radius: 8px;
+    transition: all 0.2s ease-in-out;
+}
+
+.sidebar .logout-btn:hover {
+    background-color: #f8d7da;
+}
+
+.dashboard-content {
+    flex-grow: 1;
+    margin-left: 260px;
+    padding: 40px;
+}
+
+.dashboard-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 30px;
+}
+
+.no-reviews-message {
+    font-size: 1.2rem;
+    color: var(--text-light);
+    text-align: center;
+    padding: 40px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+}
+
+
+/* YENİ VƏ TƏKMİLLƏŞDİRİLMİŞ AKKORDEON STİLLƏRİ */
+.submission-group {
+    background: var(--card-bg);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.submission-group:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--hover-shadow);
+}
+
+.submission-header {
+    padding: 20px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.submission-header:hover {
+    background-color: #f8f9fa;
+}
+
+.student-info,
+.exam-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.student-name {
+    font-weight: 600;
+    font-size: 1.2rem;
+}
+
+.student-class {
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+
+.exam-info {
+    align-items: flex-end;
+}
+
+.exam-title {
+    font-weight: 500;
+}
+
+.submission-date {
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+
+.submission-header i {
+    font-size: 1.2rem;
+    color: var(--primary-color);
+    transition: transform 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.submission-header i.rotated {
+    transform: rotate(180deg);
+}
+
+.submission-body {
+    padding: 0 25px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
+}
+
+.submission-body:not(.hidden) {
+    max-height: 3000px;
+    /* Təxmini böyük bir rəqəm */
+    padding: 25px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* YENİ VƏ SƏLİQƏLİ CAVAB STİLLƏRİ */
+.answer-item {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    background-color: #fdfdff;
+}
+
+.answer-item:not(:last-child) {
+    margin-bottom: 20px;
+}
+
+.answer-item.graded {
+    background-color: #f8f9fa;
+    text-align: center;
+}
+
+.main-question-text {
+    background-color: #e9ecef;
+    border-left: 4px solid var(--primary-color);
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-style: italic;
+    color: #495057;
+}
+
+.question-text {
+    font-weight: 600;
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+    line-height: 1.5;
+}
+
+.student-answer {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    white-space: pre-wrap;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.grading-form {
+    border-top: 1px dashed var(--border-color);
+    margin-top: 20px;
+    padding-top: 20px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    align-items: flex-end;
+}
+
+.grading-form .form-group {
+    grid-column: 1 / -1;
+    /* Mətn qutusu tam eni tutsun */
+}
+
+.grading-form .form-group:first-child {
+    grid-column: 1 / 2;
+    /* Bal seçimi yarım en */
+}
+
+.grading-form label {
+    font-weight: 500;
+    margin-bottom: 5px;
+    display: block;
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
+
+.score-select,
+.feedback-textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+    font-size: 1rem;
+    font-family: 'Inter', sans-serif;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.score-select:focus,
+.feedback-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25);
+}
+
+.feedback-textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.submit-grade-btn {
+    padding: 10px 20px;
+    border: none;
+    background: var(--success-color);
+    color: white;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    justify-self: end;
+    /* Düyməni sağa çəkir */
+}
+
+.submit-grade-btn:hover {
+    background: #157347;
+}
+
+.graded-success {
+    color: var(--success-color);
+    font-weight: 600;
+    font-size: 1.1rem;
+    padding: 20px;
+}
+
+
+.situational-wrapper .main-question-image {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 15px 0;
+}
+
+.situational-wrapper hr {
+    border: none;
+    border-top: 1px dashed var(--border-color);
+    margin: 20px 0;
+}
+
+.sub-answer-block {
+    border: 1px solid #e9ecef;
+    padding: 15px;
+    border-radius: 6px;
+    background: var(--card-bg);
+}
+
+.sub-answer-block:not(:last-child) {
+    margin-bottom: 15px;
+}
+
+/* teacher.css faylının sonuna əlavə edin */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background-color: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: var(--shadow);
+}
+
+.stat-card i {
+    font-size: 2rem;
+    color: var(--primary-color);
+}
+
+.stat-card h4 {
+    margin: 0 0 5px 0;
+    font-size: 1rem;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+.stat-card p {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.submission-footer {
+    text-align: right;
+    padding-top: 20px;
+    margin-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.submit-all-grades-btn {
+    padding: 12px 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    background-color: var(--success-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.submit-all-grades-btn:hover {
+    background-color: #157347;
+}
+
+
+/* ================================================================ */
+/* === Müəllim Paneli üçün YEKUN VƏ DÜZGÜN KOD === */
+/* ================================================================ */
+
+.dashboard-content {
+    position: relative;
+    z-index: 0;
+    background-color: #fff;
+}
+
+.dashboard-content::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('logo-pattern.png');
+    background-repeat: repeat;
+    background-size: 170px; 
+    filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
+    opacity: 0.3;
+    transform: rotate(-30deg) scale(1.5);
+    z-index: -1;
+}
