@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            fetch('http://127.0.0.1:5000/api/logout', { method: 'POST', credentials: 'include' })
+            fetch('/api/logout', { method: 'POST', credentials: 'include' })
                 .then(() => window.location.href = 'login.html');
         });
     }
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const examsTableBody = document.getElementById('exams-table-body');
     function loadExams() {
         if (!examsTableBody) return;
-        fetch('http://127.0.0.1:5000/api/admin/exams', { credentials: 'include' })
+        fetch('/api/admin/exams', { credentials: 'include' })
             .then(response => response.json())
             .then(exams => {
                 examsTableBody.innerHTML = '';
@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.classList.contains('delete-btn')) {
                 const examId = e.target.dataset.examId;
                 if (confirm('Bu imtahanı silmək istədiyinizə əminsiniz?')) {
-                    fetch(`http://127.0.0.1:5000/api/admin/exams/${examId}`, { method: 'DELETE', credentials: 'include' })
+                    fetch(`/api/admin/exams/${examId}`, { method: 'DELETE', credentials: 'include' })
                         .then(res => res.json())
                         .then(result => {
                             alert(result.message);
@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const guestBody = document.getElementById('guest-submissions-table-body');
         if (!registeredBody || !guestBody) return;
 
-        fetch('http://127.0.0.1:5000/api/admin/students', { credentials: 'include' })
+        fetch('/api/admin/students', { credentials: 'include' })
             .then(response => response.json())
             .then(data => {
                 const { registeredStudents, guestSubmissions } = data;
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadOrganizers() {
         const organizersTableBody = document.getElementById('organizers-table-body');
         if (!organizersTableBody) return;
-        fetch('http://127.0.0.1:5000/api/admin/organizers', { credentials: 'include' })
+        fetch('/api/admin/organizers', { credentials: 'include' })
             .then(response => response.json())
             .then(organizers => {
                 allOrganizers = organizers;
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 bank_account: document.getElementById('edit-org-bank').value,
                 commission_amount: document.getElementById('edit-org-commission').value
             };
-            fetch(`http://127.0.0.1:5000/api/admin/organizer/${orgId}/update`, {
+            fetch(`/api/admin/organizer/${orgId}/update`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         function loadTeachers() {
             if (!teachersTableBody) return;
-            fetch('http://127.0.0.1:5000/api/admin/teachers', { credentials: 'include' })
+            fetch('/api/admin/teachers', { credentials: 'include' })
                 .then(res => res.json())
                 .then(teachers => {
                     teachersTableBody.innerHTML = '';
@@ -281,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     password: document.getElementById('teacher-password').value,
                     subject_id: document.getElementById('teacher-subject').value
                 };
-                fetch('http://127.0.0.1:5000/api/admin/teachers', {
+                fetch('/api/admin/teachers', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (e.target.classList.contains('delete-teacher-btn')) {
                     const teacherId = e.target.dataset.teacherId;
                     if (confirm('Bu müəllimi silmək istədiyinizə əminsiniz?')) {
-                        fetch(`http://127.0.0.1:5000/api/admin/teachers/${teacherId}`, {
+                        fetch(`/api/admin/teachers/${teacherId}`, {
                             method: 'DELETE',
                             credentials: 'include'
                         })
@@ -336,7 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     function loadExamMetaData() {
-        fetch('http://127.0.0.1:5000/api/admin/exam-meta', { credentials: 'include' })
+        fetch('/api/admin/exam-meta', { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
                 subjects = data.subjects;
@@ -585,7 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             formData.append('questions', JSON.stringify(questionsData));
 
-            fetch('http://127.0.0.1:5000/api/admin/exams', { method: 'POST', credentials: 'include', body: formData })
+            fetch('/api/admin/exams', { method: 'POST', credentials: 'include', body: formData })
                 .then(res => res.json().then(data => ({ ok: res.ok, data })))
                 .then(({ ok, data }) => {
                     alert(data.message);

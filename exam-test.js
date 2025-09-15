@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const finishExamBtn = document.getElementById('finish-exam-btn');
 
     // --- PROFİL ADINI YÜKLƏMƏ ---
-    fetch(`http://127.0.0.1:5000/api/profile`, { credentials: 'include' })
+    fetch(`/api/profile`, { credentials: 'include' })
         .then(res => {
             if (res.ok) {
                 return res.json();
@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    fetch(`http://127.0.0.1:5000/api/exam-test/${examId}`)
+    fetch(`/api/exam-test/${examId}`)
         .then(response => {
             if (!response.ok) {
                 return response.json().then(err => { throw new Error(err.error || 'Server xətası') });
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="situational-block">
                         <h3>Situasiya (Sual ${overallQuestionCounter})</h3>
                         <p class="main-text">${item.main_text}</p>
-                        ${item.image_path ? `<img src="http://127.0.0.1:5000/uploads/${item.image_path}" alt="Situasiya şəkli">` : ''}
+                        ${item.image_path ? `<img src="/uploads/${item.image_path}" alt="Situasiya şəkli">` : ''}
                         <hr>
                         ${subQuestionsHTML}
                     </div>`;
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <input type="radio" name="q${item.id}" value="${opt.variant}">
                                 <div class="option-content">
                                     ${opt.text ? `<span>${opt.variant}) ${opt.text}</span>` : `<span>${opt.variant})</span>`}
-                                    ${opt.image_path ? `<img src="http://127.0.0.1:5000/uploads/${opt.image_path}" alt="Variant ${opt.variant}">` : ''}
+                                    ${opt.image_path ? `<img src="/uploads/${opt.image_path}" alt="Variant ${opt.variant}">` : ''}
                                 </div>
                             </label>`;
                         });
@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     questionWrapper.innerHTML = `
                     <div class="question-group">
                         <p>${overallQuestionCounter}. ${item.text}</p>
-                        ${item.question_image_path ? `<img src="http://127.0.0.1:5000/uploads/${item.question_image_path}" alt="Sual şəkli">` : ''}
+                        ${item.question_image_path ? `<img src="/uploads/${item.question_image_path}" alt="Sual şəkli">` : ''}
                         <div class="options">${optionsHTML}</div>
                     </div>
                 `;
@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
             guestEmail: urlParams.get('studentEmail')
         };
 
-        fetch('http://127.0.0.1:5000/api/exam/submit', {
+        fetch('/api/exam/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',

@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadTeacherStats() {
         if (!statsContainer) return;
 
-        fetch('http://127.0.0.1:5000/api/teacher/stats', { credentials: 'include' })
+        fetch('/api/teacher/stats', { credentials: 'include' })
             .then(res => res.json())
             .then(stats => {
                 statsContainer.innerHTML = `
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Yoxlanılacaq cavabları yükləyən funksiya
     function loadPendingReviews() {
-        fetch('http://127.0.0.1:5000/api/teacher/pending-reviews', { credentials: 'include' })
+        fetch('/api/teacher/pending-reviews', { credentials: 'include' })
             .then(res => {
                 if (!res.ok) {
                     if (res.status === 401) window.location.href = 'teacher-login.html';
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             itemsHTML += `
                             <div class="answer-item situational-wrapper">
                                 <div class="main-question-text"><strong>Situasiya:</strong> ${item.main_text}</div>
-                                ${item.main_image_path ? `<img src="http://127.0.0.1:5000/uploads/${item.main_image_path}" class="main-question-image" alt="Situasiya şəkli">` : ''}
+                                ${item.main_image_path ? `<img src="/uploads/${item.main_image_path}" class="main-question-image" alt="Situasiya şəkli">` : ''}
                                 <hr>
                                 ${subAnswersHTML}
                             </div>`;
@@ -151,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.textContent = 'Yoxlanılır...';
             btn.disabled = true;
 
-            fetch('http://127.0.0.1:5000/api/teacher/grade-submission-bulk', {
+            fetch('/api/teacher/grade-submission-bulk', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',

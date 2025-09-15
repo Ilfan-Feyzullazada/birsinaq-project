@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(regFormElement);
             const data = Object.fromEntries(formData.entries());
 
-            fetch('http://127.0.0.1:5000/api/organizer/register', {
+            fetch('/api/organizer/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(loginFormElement);
             const data = Object.fromEntries(formData.entries());
 
-            fetch('http://127.0.0.1:5000/api/organizer/login', {
+            fetch('/api/organizer/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data),

@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    fetch(`http://127.0.0.1:5000/api/submission/${submissionId}/result`, { credentials: 'include' })
+    fetch(`/api/submission/${submissionId}/result`, { credentials: 'include' })
         .then(response => {
             if (!response.ok) {
                 return response.json().then(err => { throw new Error(err.message || 'Nəticələri yükləmək mümkün olmadı.') });

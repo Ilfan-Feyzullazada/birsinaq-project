@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 5. Backend-ə sorğu göndərib uyğun imtahanları çəkirik
-    fetch(`http://127.0.0.1:5000/api/exams?type=${encodeURIComponent(examType)}&grade=${encodeURIComponent(examGrade)}`, {
+    fetch(`/api/exams?type=${encodeURIComponent(examType)}&grade=${encodeURIComponent(examGrade)}`, {
         credentials: 'include'
     })
     .then(response => {

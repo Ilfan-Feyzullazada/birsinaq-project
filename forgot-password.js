@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData(forgotPasswordForm);
         const data = Object.fromEntries(formData.entries());
 
-        fetch('http://127.0.0.1:5000/api/forgot-password', {
+        fetch('/api/forgot-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),

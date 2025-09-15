@@ -2,7 +2,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const container = document.querySelector('.exam-card-container');
 
-    fetch('http://127.0.0.1:5000/api/exams/categories')
+    fetch('/api/exams/categories')
         .then(response => response.json())
         .then(categories => {
             container.innerHTML = ''; // Köhnə statik məzmunu təmizlə

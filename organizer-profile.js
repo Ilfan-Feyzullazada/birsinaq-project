@@ -79,8 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadInitialData() {
         // Eyni anda həm profil, həm də şagird məlumatlarını çəkirik
         Promise.all([
-            fetch('http://127.0.0.1:5000/api/organizer/profile', { credentials: 'include' }),
-            fetch('http://127.0.0.1:5000/api/organizer/students', { credentials: 'include' })
+            fetch('/api/organizer/profile', { credentials: 'include' }),
+            fetch('/api/organizer/students', { credentials: 'include' })
         ])
         .then(async ([profileRes, studentsRes]) => {
             if (!profileRes.ok) {
@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 email: editEmail.value
             };
 
-            fetch('http://127.0.0.1:5000/api/organizer/update', {
+            fetch('/api/organizer/update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            fetch('http://127.0.0.1:5000/api/logout', { method: 'POST', credentials: 'include' })
+            fetch('/api/logout', { method: 'POST', credentials: 'include' })
                 .then(() => window.location.href = 'organizer.html');
         });
     }

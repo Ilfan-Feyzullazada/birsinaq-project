@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Yeni şifrəni token ilə birlikdə backend-ə göndəririk
-        fetch(`http://127.0.0.1:5000/api/reset-password/${token}`, {
+        fetch(`/api/reset-password/${token}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ password: password }),

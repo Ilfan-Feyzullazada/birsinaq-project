@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             // Addım 1: Admin kimi yoxla
-            let response = await fetch('http://127.0.0.1:5000/api/admin/login', {
+            let response = await fetch('/api/admin/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(loginData),
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Addım 2: Müəllim kimi yoxla
-            response = await fetch('http://127.0.0.1:5000/api/teacher/login', {
+            response = await fetch('/api/teacher/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(loginData),
@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Addım 3: Şagird kimi yoxla
-            response = await fetch('http://127.0.0.1:5000/api/login', {
+            response = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(loginData),

@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     
     // --- Profil məlumatlarını və imtahan keçmişini yükləmə ---
-    fetch('http://127.0.0.1:5000/api/profile', {
+    fetch('/api/profile', {
         credentials: 'include' 
     })
     .then(response => {
