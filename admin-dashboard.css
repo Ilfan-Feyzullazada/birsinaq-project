@@ -20,12 +20,19 @@ body::before {
     left: 0;
     width: 100%;
     height: 100vh;
+    
     background-image: url('logo-pattern.png');
     background-repeat: repeat;
-    background-size: 170px; 
+    
+    
+     background-size: 50px;
+    
     filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
-    opacity: 0.3;
-    transform: rotate(-30deg) scale(1.5);
+    opacity: 0.5;
+
+    /* DİAQONAL GÖRÜNÜŞÜ GERİ QAYTARIRIQ */
+    transform: rotate(-30deg) scale(1.8);
+    
     z-index: -1;
 }
 
@@ -833,4 +840,342 @@ tbody tr:hover {
 }
 #exam-submit-btn:hover {
     background-color: #4338ca;
+}
+/* Uyğunluq sualı forması üçün stillər */
+.matching-container {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+.matching-column {
+    flex: 1;
+    border: 1px solid #eee;
+    padding: 15px;
+    border-radius: 8px;
+}
+.matching-column h5 {
+    margin-top: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.matching-items-list .matching-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.matching-item input {
+    width: 100%;
+}
+.add-matching-item-btn, .remove-matching-item-btn {
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+.add-matching-item-btn {
+    background-color: #28a745;
+    color: white;
+    width: 25px;
+    height: 25px;
+}
+.remove-matching-item-btn {
+    background-color: #dc3545;
+    color: white;
+    width: 25px;
+    height: 25px;
+}
+.matching-answers-list .matching-answer-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+
+/* === Uyğunluq və Fast Tree Formaları üçün Yekun Dizayn === */
+
+/* Ümumi Konteynerlər */
+.matching-container, .fast-tree-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.matching-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+    margin-bottom: 20px;
+}
+
+.matching-column, .fast-tree-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Bölmə Başlıqları (Nömrələnmiş Bəndlər, Hərflənmiş Bəndlər və s.) */
+.matching-column h5,
+#specific-area h5 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1rem;
+    color: #374151;
+    margin: 0 0 5px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* Hər bir sətir (input + select + sil düyməsi) */
+.matching-item,
+.fast-tree-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Mətn daxil etmə sahələri */
+.matching-item input[type="text"],
+.fast-tree-item input[type="text"] {
+    flex-grow: 1;
+    padding: 9px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.matching-item input[type="text"]:focus,
+.fast-tree-item input[type="text"]:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
+
+/* Fast Tree üçün "Doğru/Yalan" seçimi */
+.fast-tree-item .fast-tree-answer {
+    flex-shrink: 0;
+    width: 120px;
+    padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+}
+
+/* Silmə ("X") və Əlavə etmə ("+") düymələri */
+.add-matching-item-btn,
+.remove-matching-item-btn {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-weight: bold;
+    flex-shrink: 0;
+    transition: all 0.2s ease-in-out;
+}
+
+.add-matching-item-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    background-color: #e0e7ff;
+    color: #4f46e5;
+}
+.add-matching-item-btn:hover {
+    background-color: #c7d2fe;
+}
+
+.remove-matching-item-btn {
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    background-color: #fee2e2;
+    color: #ef4444;
+}
+.remove-matching-item-btn:hover {
+    background-color: #ef4444;
+    color: white;
+}
+
+/* Uyğunluq cavablarının təyin edildiyi hissə */
+.matching-answers-list {
+    margin-top: 10px;
+}
+.matching-answers-list .matching-answer-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 8px 0;
+}
+.matching-answers-list .matching-answer-row label {
+    font-weight: 500;
+    flex-shrink: 0;
+}
+.matching-answers-list .matching-answer-row select {
+    width: 100px;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+}
+
+/* "+ Bənd Əlavə Et" yazılı böyük düymə */
+button[data-type="fast_tree"].add-matching-item-btn {
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 5px;
+    padding: 10px;
+    font-weight: bold;
+    color: #4f46e5;
+    background-color: #eef2ff;
+    border: 1px dashed #a5b4fc;
+}
+button[data-type="fast_tree"].add-matching-item-btn:hover {
+    background-color: #e0e7ff;
+    border-style: solid;
+}
+
+
+/* Admin Paneli Ana Səhifə Reytinq Stilləri */
+.dashboard-leaderboard-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+.leaderboard-row {
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.leaderboard-row h3 {
+    margin-top: 0;
+    font-size: 1.2rem;
+    color: #333;
+    border-bottom: 1px solid #f0f0f0;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+.leaderboard-list-admin table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.leaderboard-list-admin th, .leaderboard-list-admin td {
+    padding: 12px 0;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f0;
+}
+.leaderboard-list-admin tbody tr:last-child td {
+    border-bottom: none;
+}
+.leaderboard-list-admin th {
+    font-size: 0.9em;
+    color: #6c757d;
+}
+.leaderboard-list-admin .rank {
+    font-weight: bold;
+    text-align: center;
+    width: 40px;
+    font-size: 1.1em;
+}
+.leaderboard-list-admin .score {
+    font-weight: 600;
+    color: #28a745;
+    text-align: right;
+}
+.leaderboard-list-admin .fa-medal {
+    font-size: 1.5em;
+}
+.gold { color: #ffc107; }
+.silver { color: #adb5bd; }
+.bronze { color: #cd7f32; }
+.no-results-admin {
+    padding: 20px;
+    text-align: center;
+    color: #6c757d;
+}
+
+/* Toggle Switch Stilləri */
+.toggle-group {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+input:checked + .slider {
+  background-color: #28a745;
+}
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+.slider.round {
+  border-radius: 34px;
+}
+.slider.round:before {
+  border-radius: 50%;
+}
+
+
+/* Şagird məlumatları pəncərəsi üçün stillər */
+.student-details-link {
+    text-decoration: none;
+    color: #0056b3;
+    font-weight: 500;
+}
+.student-details-link:hover {
+    text-decoration: underline;
+}
+#student-details-content .info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+#student-details-content .info-item .label {
+    font-weight: bold;
+    color: #6c757d;
+}
+
+.actions .affiliate-settings-btn {
+    background-color: #ffc107;
+    color: #212529;
+}
+.actions .affiliate-settings-btn:hover {
+    background-color: #e0a800;
 }

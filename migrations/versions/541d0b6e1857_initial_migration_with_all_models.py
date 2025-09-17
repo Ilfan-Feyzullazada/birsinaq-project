@@ -1,8 +1,8 @@
-"""Final Initial Migration
+"""Initial migration with all models
 
-Revision ID: 3fd8d5d99254
+Revision ID: 541d0b6e1857
 Revises: 
-Create Date: 2025-09-13 21:14:22.608086
+Create Date: 2025-09-17 01:11:14.404169
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
-revision = '3fd8d5d99254'
+revision = '541d0b6e1857'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -47,7 +47,12 @@ def upgrade():
     sa.Column('invite_code', sa.String(length=10), nullable=False),
     sa.Column('balance', sa.Float(), nullable=False),
     sa.Column('commission_amount', sa.Float(), nullable=False),
+    sa.Column('can_invite_affiliates', sa.Boolean(), nullable=False),
+    sa.Column('affiliate_invite_limit', sa.Integer(), nullable=False),
+    sa.Column('affiliate_invite_code', sa.String(length=12), nullable=True),
+    sa.Column('affiliate_commission', sa.Float(), nullable=False),
     sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('affiliate_invite_code'),
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('invite_code')
     )
@@ -57,10 +62,24 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
     )
+    op.create_table('affiliate',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('email', sa.String(length=100), nullable=False),
+    sa.Column('password', sa.String(length=100), nullable=False),
+    sa.Column('student_invite_code', sa.String(length=10), nullable=False),
+    sa.Column('balance', sa.Float(), nullable=False),
+    sa.Column('parent_organizer_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['parent_organizer_id'], ['organizer.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('email'),
+    sa.UniqueConstraint('student_invite_code')
+    )
     op.create_table('exam',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=200), nullable=False),
     sa.Column('price', sa.Float(), nullable=False),
+    sa.Column('video_url', sa.String(length=300), nullable=True),
     sa.Column('duration_minutes', sa.Integer(), nullable=False),
     sa.Column('publish_date', sa.DateTime(), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
@@ -77,21 +96,6 @@ def upgrade():
     sa.Column('password', sa.String(length=100), nullable=False),
     sa.Column('subject_id', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['subject_id'], ['subject.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('email')
-    )
-    op.create_table('user',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('contact', sa.String(length=100), nullable=False),
-    sa.Column('school', sa.String(length=100), nullable=False),
-    sa.Column('class', sa.String(length=50), nullable=False),
-    sa.Column('department', sa.String(length=100), nullable=False),
-    sa.Column('language', sa.String(length=100), nullable=False),
-    sa.Column('email', sa.String(length=100), nullable=False),
-    sa.Column('password', sa.String(length=100), nullable=False),
-    sa.Column('organizer_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['organizer_id'], ['organizer.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email')
     )
@@ -112,18 +116,22 @@ def upgrade():
     sa.ForeignKeyConstraint(['exam_id'], ['exam.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('submission',
+    op.create_table('user',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=True),
-    sa.Column('guest_name', sa.String(length=100), nullable=True),
-    sa.Column('guest_email', sa.String(length=100), nullable=True),
-    sa.Column('exam_id', sa.Integer(), nullable=False),
-    sa.Column('score', sa.Float(), nullable=False),
-    sa.Column('submitted_at', sa.DateTime(), nullable=False),
-    sa.Column('answers', sqlite.JSON(), nullable=False),
-    sa.ForeignKeyConstraint(['exam_id'], ['exam.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('contact', sa.String(length=100), nullable=False),
+    sa.Column('school', sa.String(length=100), nullable=False),
+    sa.Column('class', sa.String(length=50), nullable=False),
+    sa.Column('department', sa.String(length=100), nullable=False),
+    sa.Column('language', sa.String(length=100), nullable=False),
+    sa.Column('email', sa.String(length=100), nullable=False),
+    sa.Column('password', sa.String(length=100), nullable=False),
+    sa.Column('organizer_id', sa.Integer(), nullable=True),
+    sa.Column('affiliate_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['affiliate_id'], ['affiliate.id'], ),
+    sa.ForeignKeyConstraint(['organizer_id'], ['organizer.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('email')
     )
     op.create_table('question',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -137,9 +145,26 @@ def upgrade():
     sa.Column('question_image_path', sa.String(length=200), nullable=True),
     sa.Column('topic', sa.String(length=200), nullable=True),
     sa.Column('difficulty', sa.String(length=50), nullable=True),
+    sa.Column('video_start_time', sa.Integer(), nullable=True),
+    sa.Column('points', sa.Integer(), nullable=True),
+    sa.Column('audio_path', sa.String(length=200), nullable=True),
     sa.ForeignKeyConstraint(['exam_id'], ['exam.id'], ),
     sa.ForeignKeyConstraint(['situational_block_id'], ['situational_question_block.id'], ),
     sa.ForeignKeyConstraint(['subject_id'], ['subject.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('submission',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=True),
+    sa.Column('guest_name', sa.String(length=100), nullable=True),
+    sa.Column('guest_email', sa.String(length=100), nullable=True),
+    sa.Column('exam_id', sa.Integer(), nullable=False),
+    sa.Column('score', sa.Float(), nullable=False),
+    sa.Column('submitted_at', sa.DateTime(), nullable=False),
+    sa.Column('answers', sqlite.JSON(), nullable=False),
+    sa.Column('time_spent_per_question', sqlite.JSON(), nullable=True),
+    sa.ForeignKeyConstraint(['exam_id'], ['exam.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('answer',
@@ -151,6 +176,7 @@ def upgrade():
     sa.Column('status', sa.String(length=50), nullable=False),
     sa.Column('graded_by_teacher_id', sa.Integer(), nullable=True),
     sa.Column('teacher_feedback', sa.Text(), nullable=True),
+    sa.Column('graded_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['graded_by_teacher_id'], ['teacher.id'], ),
     sa.ForeignKeyConstraint(['question_id'], ['question.id'], ),
     sa.ForeignKeyConstraint(['submission_id'], ['submission.id'], ),
@@ -162,13 +188,14 @@ def upgrade():
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('answer')
-    op.drop_table('question')
     op.drop_table('submission')
+    op.drop_table('question')
+    op.drop_table('user')
     op.drop_table('situational_question_block')
     op.drop_table('exam_subject')
-    op.drop_table('user')
     op.drop_table('teacher')
     op.drop_table('exam')
+    op.drop_table('affiliate')
     op.drop_table('subject')
     op.drop_table('organizer')
     op.drop_table('exam_type')

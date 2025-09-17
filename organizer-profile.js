@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Bütün lazımi HTML elementlərini əvvəlcədən seçirik
+    // --- BÜTÜN LAZIMI HTML ELEMENTLƏRİNİ ƏVVƏLCƏDƏN SEÇİRİK ---
     const welcomeMessage = document.getElementById('welcome-message');
     const balanceValue = document.getElementById('balance-value');
     const studentCountValue = document.getElementById('student-count-value');
@@ -20,6 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const editCard = document.getElementById('edit-card');
     const editEmail = document.getElementById('edit-email');
     
+    // YENİ: Əlaqələndirici (Affiliate) sistemi üçün elementlər
+    const affiliateSection = document.getElementById('affiliate-section');
+    const affiliateInviteLinkInput = document.getElementById('affiliateInviteLink');
+    const copyAffiliateLinkBtn = document.getElementById('copyAffiliateLinkBtn');
+    const affiliateListBody = document.getElementById('affiliate-list-body');
+
     // Təşkilatçının məlumatlarını saxlamaq üçün qlobal dəyişən
     let currentOrganizerData = {};
 
@@ -27,15 +33,38 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderProfileData(data) {
         currentOrganizerData = data; // Məlumatları redaktə üçün yadda saxlayırıq
         welcomeMessage.textContent = `Xoş gəlmisiniz, ${data.name}!`;
-        // DÜZƏLİŞ: Balans 'undefined' olsa belə xəta verməsin deyə (data.balance || 0) istifadə edirik
         balanceValue.textContent = `${(data.balance || 0).toFixed(2)} AZN`;
         displayName.textContent = data.name;
         displayEmail.textContent = data.email;
         displayContact.textContent = data.contact;
-        displayCard.textContent = data.bank_account; // Kart nömrəsi tam görünür
+        displayCard.textContent = data.bank_account;
         
-        const registrationPageUrl = new URL('register.html', window.location.href).href;
-        inviteLinkInput.value = `${registrationPageUrl}?invite_code=${data.invite_code}`;
+        const registrationPageUrl = new URL('register.html', window.location.href);
+        inviteLinkInput.value = `${registrationPageUrl.origin}/register.html?invite_code=${data.invite_code}`;
+
+        // YENİ: Əgər admin icazə veribsə, əlaqələndirici bölməsini göstəririk
+        if (data.can_invite_affiliates && affiliateSection) {
+            affiliateSection.style.display = 'block';
+            
+            // YENİ: Əlaqələndirici üçün qeydiyyat linkini yaradırıq (yeni bir səhifə olmalıdır)
+            const affiliateRegUrl = new URL('affiliate-register.html', window.location.href);
+            affiliateInviteLinkInput.value = `${affiliateRegUrl.origin}/affiliate-register.html?invite_code=${data.affiliate_invite_code}`;
+
+            affiliateListBody.innerHTML = '';
+            if (data.affiliates && data.affiliates.length > 0) {
+                data.affiliates.forEach(aff => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${aff.name}</td>
+                        <td>${aff.email}</td>
+                        <td><span class="status-active">Aktiv</span></td>
+                    `;
+                    affiliateListBody.appendChild(tr);
+                });
+            } else {
+                affiliateListBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Heç bir əlaqələndirici dəvət etməmisiniz.</td></tr>';
+            }
+        }
     }
 
     function renderStudentData(students) {
@@ -98,14 +127,16 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(error => {
             console.error("Panel yüklənərkən xəta baş verdi:", error.message);
             welcomeMessage.textContent = 'Məlumatları yükləmək mümkün olmadı.';
-            studentListBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Məlumatları yükləmək mümkün olmadı.</td></tr>';
+            if(studentListBody) {
+                studentListBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Məlumatları yükləmək mümkün olmadı.</td></tr>';
+            }
         });
     }
 
     // Modal pəncərəni idarə edən məntiq
     if (editProfileBtn) {
         editProfileBtn.onclick = function() {
-            if (currentOrganizerData.name) { // Yalnız məlumatlar yükləndikdən sonra aç
+            if (currentOrganizerData.name) {
                 editName.value = currentOrganizerData.name;
                 editContact.value = currentOrganizerData.contact;
                 editCard.value = currentOrganizerData.bank_account;
@@ -149,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(result.message);
                 if (result.message.includes('uğurla')) {
                     modal.style.display = "none";
-                    loadInitialData(); // Bütün paneli yeni məlumatlarla yeniləyirik
+                    loadInitialData();
                 }
             })
             .catch(error => {
@@ -168,11 +199,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Linki kopyalamaq üçün funksiya
+    // Linki kopyalamaq üçün funksiyalar
     window.copyLink = function() {
         inviteLinkInput.select();
         document.execCommand('copy');
-        alert("Dəvət linki kopyalandı!");
+        alert("Şagird dəvət linki kopyalandı!");
+    }
+    
+    // YENİ: Əlaqələndirici linkini kopyalamaq
+    if (copyAffiliateLinkBtn) {
+        copyAffiliateLinkBtn.addEventListener('click', () => {
+            affiliateInviteLinkInput.select();
+            document.execCommand('copy');
+            alert("Əlaqələndirici dəvət linki kopyalandı!");
+        });
     }
 
     // Səhifə yüklənəndə bütün məlumatları yüklə

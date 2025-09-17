@@ -1,4 +1,4 @@
-/* organizer.css (YENİ, PROFESSİONAL VƏ ƏTRAFLI DİZAYN) */
+/* organizer.css (YENİ, PROFESSİONAL VƏ BÜTÜN DƏYİŞİKLİKLƏR EDİLMİŞ DİZAYN) */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
@@ -36,12 +36,19 @@ body::before {
     left: 0;
     width: 100%;
     height: 100vh;
+    
     background-image: url('logo-pattern.png');
     background-repeat: repeat;
-    background-size: 170px; 
+    
+    
+     background-size: 50px;
+    
     filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
-    opacity: 0.3;
-    transform: rotate(-30deg) scale(1.5);
+    opacity: 0.5;
+
+    /* DİAQONAL GÖRÜNÜŞÜ GERİ QAYTARIRIQ */
+    transform: rotate(-30deg) scale(1.8);
+    
     z-index: -1;
 }
 
@@ -85,22 +92,93 @@ body::before {
 .stat-card-info .label { font-size: 1rem; color: var(--text-color-light); margin-bottom: 5px; }
 .stat-card-info .value { font-size: 2.5rem; font-weight: 700; line-height: 1.2; }
 
-.dashboard-content { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; align-items: flex-start; }
-.content-card { background-color: var(--card-bg-color); border-radius: var(--border-radius); padding: 30px; box-shadow: var(--shadow); }
-.content-card h3 { margin-top: 0; font-size: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px; }
+/* === SƏHİFƏ QURULUŞU ÜÇÜN YENİ CSS === */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 350px 1fr; /* Sol sütun 350px, sağ sütun qalan hissə */
+    grid-template-rows: auto auto;
+    gap: 30px;
+    align-items: flex-start;
+}
 
-.info-item { display: flex; justify-content: space-between; padding: 14px 0; font-size: 1rem; }
+#personal-info-card {
+    grid-column: 1 / 2;
+    grid-row: 1 / 3; /* Şəxsi məlumatlar solda 2 sətir hündürlüyündə yerləşir */
+}
+
+#invites-card { /* Birləşdirilmiş kart üçün yeni stil */
+    grid-column: 2 / 3;
+    grid-row: 1 / 3; /* Dəvət bloku sağda 2 sətir hündürlüyündə yerləşir */
+}
+
+#student-results-table {
+    grid-column: 1 / -1; /* Cədvəl ən altda tam eni tutur */
+    margin-top: 10px;
+}
+
+.content-card {
+    background-color: var(--card-bg-color);
+    border-radius: var(--border-radius);
+    padding: 30px;
+    box-shadow: var(--shadow);
+}
+
+.content-card h3 {
+    margin-top: 0;
+    font-size: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.content-card h4 {
+    font-size: 1.1rem;
+    margin-top: 0;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 0;
+    font-size: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+.info-item:last-of-type {
+    border-bottom: none;
+}
 .info-item .label { font-weight: 500; color: var(--text-color-light); }
 .info-item .value { font-weight: 600; text-align: right; }
-.invite-link-box { margin-top: 25px; }
-.invite-link-box p { font-weight: 600; margin-bottom: 10px; }
+
+.invite-link-box p {
+    font-weight: 500;
+    margin-bottom: 10px;
+    color: #4a5568;
+}
 .link-container { display: flex; }
-#inviteLink { width: 100%; padding: 10px 15px; border: 2px solid var(--border-color); border-radius: 8px 0 0 8px; font-size: 1rem; background-color: var(--body-bg-color); transition: border-color 0.3s; }
-#inviteLink:focus { outline: none; border-color: var(--primary-color); }
+#inviteLink, #affiliateInviteLink {
+    width: 100%;
+    padding: 10px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px 0 0 8px;
+    font-size: 1rem;
+    background-color: var(--body-bg-color);
+    transition: border-color 0.3s;
+}
+#inviteLink:focus, #affiliateInviteLink:focus { outline: none; border-color: var(--primary-color); }
 .copy-btn { padding: 0 20px; border: 2px solid var(--primary-color); background-color: var(--primary-color); color: white; cursor: pointer; border-radius: 0 8px 8px 0; transition: background-color 0.3s; font-size: 1.2rem; }
 .copy-btn:hover { background-color: #357ABD; }
 
-/* YENİ: REDAKTƏ DÜYMƏSİ ÜÇÜN STİL */
+hr.section-divider {
+    border: none;
+    border-top: 1px dashed #e2e8f0;
+    margin: 25px 0;
+}
+
+.status-active {
+    color: #28a745;
+    font-weight: bold;
+}
+
 .edit-actions { margin-top: 25px; text-align: center; }
 .edit-btn {
     background-color: #f8f9fa;
@@ -115,7 +193,6 @@ body::before {
 }
 .edit-btn:hover { background-color: var(--border-color); }
 
-/* YENİ: MODAL (POP-UP) PƏNCƏRƏSİ ÜÇÜN STİLLƏR */
 .modal {
     display: none;
     position: fixed;
@@ -161,33 +238,3 @@ thead { background-color: var(--body-bg-color); }
 th { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-color-light); }
 tbody tr:hover { background-color: #fafdff; }
 td .student-name { font-weight: 600; }
-
-/* ================================================================ */
-/* === Təşkilatçı Paneli üçün YEKUN VƏ DÜZGÜN KOD === */
-/* ================================================================ */
-
-html {
-    overflow-x: hidden;
-}
-
-body {
-    background-color: #fff; 
-    position: relative; 
-    z-index: 0;
-}
-
-body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100vh;
-    background-image: url('logo-pattern.png');
-    background-repeat: repeat;
-    background-size: 170px; 
-    filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
-    opacity: 0.3;
-    transform: rotate(-30deg) scale(1.5);
-    z-index: -1;
-}

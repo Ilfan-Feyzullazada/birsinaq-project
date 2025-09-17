@@ -19,12 +19,19 @@ body::before {
     left: 0;
     width: 100%;
     height: 100vh;
+    
     background-image: url('logo-pattern.png');
     background-repeat: repeat;
-    background-size: 170px; 
+    
+    
+     background-size: 50px;
+    
     filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
-    opacity: 0.3;
-    transform: rotate(-30deg) scale(1.5);
+    opacity: 0.5;
+
+    /* DİAQONAL GÖRÜNÜŞÜ GERİ QAYTARIRIQ */
+    transform: rotate(-30deg) scale(1.8);
+    
     z-index: -1;
 }
 
@@ -238,4 +245,35 @@ body::before {
 .chart-container {
     width: 100%;
     height: 400px; /* Qrafikin hündürlüyünü artırır */
+}
+
+
+/* profile.css faylının sonuna əlavə edin */
+.history-item-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.result-link {
+    text-decoration: none;
+    color: #007BFF;
+    font-weight: 500;
+}
+
+.retake-btn {
+    text-decoration: none;
+    background-color: #17a2b8;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    font-weight: bold;
+    white-space: nowrap;
+    transition: background-color 0.2s;
+}
+
+.retake-btn:hover {
+    background-color: #138496;
 }

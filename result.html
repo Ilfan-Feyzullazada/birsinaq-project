@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="az">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
+
 <body>
 
     <header class="header">
@@ -39,7 +41,7 @@
                     <p id="unanswered-count">...</p>
                 </div>
             </div>
-            
+
             <div id="result-container">
                 <p>Nəticələr yüklənir...</p>
             </div>
@@ -50,19 +52,17 @@
         </div>
     </main>
 
-    <div id="certificate-template" class="certificate-template">
-        <h1>SERTİFİKAT</h1>
-        <p class="cert-intro">Bu sertifikat təqdim olunur</p>
-        <h2 class="cert-name" id="cert-name">[AD SOYAD]</h2>
-        <p class="cert-body">
-            "<span id="cert-exam-title">[İmtahan Adı]</span>" imtahanında iştirak etdiyinə görə.
-        </p>
-        <div class="cert-details">
-            <p><strong>Tarix:</strong> <span id="cert-date">[Tarix]</span></p>
-            <p><strong>Yekun Bal:</strong> <span id="cert-score">[Bal]</span></p>
+    <div id="new-certificate-container" style="position: absolute; left: -9999px; top: 0;">
+        <div id="new-certificate-template" class="cert-bg-image-template">
+            <div id="cert-name-new" class="cert-text-overlay student-name"></div>
+            <div id="cert-score-new" class="cert-text-overlay student-score"></div>
+            <div id="cert-date-new" class="cert-text-overlay submission-date"></div>
         </div>
-        <p class="cert-footer">BirSınaq Onlayn İmtahan Platforması</p>
     </div>
+
+    <script src="result.js"></script>
+
+    <script src="result.js"></script>
 
     <script src="result.js"></script>
 
@@ -70,4 +70,5 @@
 
 
 </body>
+
 </html>

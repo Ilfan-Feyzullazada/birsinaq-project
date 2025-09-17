@@ -19,12 +19,19 @@ body::before {
     left: 0;
     width: 100%;
     height: 100vh;
+    
     background-image: url('logo-pattern.png');
     background-repeat: repeat;
-    background-size: 170px; 
+    
+    
+     background-size: 50px;
+    
     filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
-    opacity: 0.3;
-    transform: rotate(-30deg) scale(1.5);
+    opacity: 0.5;
+
+    /* DİAQONAL GÖRÜNÜŞÜ GERİ QAYTARIRIQ */
+    transform: rotate(-30deg) scale(1.8);
+    
     z-index: -1;
 }
 
@@ -548,4 +555,296 @@ body::before {
 /* Seçilmiş variantın içindəki mətni bir az qalınlaşdırırıq */
 .option-label-rich.selected .option-content span {
     font-weight: 600;
+}
+
+
+/* exam-test.css faylının sonuna əlavə edin */
+
+.audio-player-wrapper {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.audio-player-wrapper p {
+    margin: 0 0 10px 0;
+    font-weight: 500;
+    color: #495057;
+}
+
+.audio-player-wrapper audio {
+    width: 100%;
+}
+
+/* Kodlaşdırma vərəqi üçün stillər */
+.grid-toggle-wrapper {
+    margin-top: 15px;
+}
+
+.grid-toggle-btn {
+    padding: 8px 15px;
+    border: 1px solid #007bff;
+    background-color: #f8f9fa;
+    color: #007bff;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+.grid-toggle-btn:hover {
+    background-color: #007bff;
+    color: white;
+}
+
+.grid-input-container {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+.grid-display {
+    width: 200px;
+    padding: 8px;
+    font-size: 1.2em;
+    font-weight: bold;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    letter-spacing: 2px;
+}
+
+.grid-columns {
+    display: flex;
+    gap: 5px;
+}
+
+.grid-column {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.grid-bubble {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s;
+}
+
+.grid-bubble:hover {
+    background-color: #e9ecef;
+    border-color: #007bff;
+}
+
+.grid-bubble.selected {
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+/* Fast Tree sualları üçün stillər */
+.fast-tree-sub-questions-container {
+    margin-bottom: 20px;
+    border-left: 3px solid #eee;
+    padding-left: 15px;
+}
+.fast-tree-sub-question {
+    margin-bottom: 10px;
+    font-size: 1.1em;
+}
+.fast-tree-answer-grid {
+    display: flex;
+    gap: 15px;
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+.fast-tree-answer-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.fast-tree-answer-number {
+    font-weight: bold;
+}
+
+
+/* Fast Tree üçün Yeni Şagird Paneli Dizaynı */
+.fast-tree-student-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.fast-tree-student-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+}
+.fast-tree-student-text {
+    font-size: 1.1rem;
+    flex-grow: 1;
+}
+.fast-tree-student-options {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+}
+.tf-btn {
+    padding: 8px 20px;
+    border: 1px solid #ccc;
+    background-color: #f8f9fa;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 600;
+}
+.tf-btn.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+/* ========================================================== */
+/* === Uyğunlaşdırma (Matching) Sualı Üçün Yeni Stillər === */
+/* ========================================================== */
+
+.matching-student-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 25px;
+    background-color: #f8f9fa;
+    padding: 20px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+}
+
+.matching-student-items h4 {
+    margin-top: 0;
+    color: #007bff;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 10px;
+}
+
+ul.matching-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+ul.matching-list li {
+    padding: 5px 0;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.matching-answer-grid {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.matching-answer-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.matching-answer-number {
+    font-size: 1.2rem;
+    font-weight: bold;
+    width: 30px;
+    text-align: center;
+}
+
+.matching-answer-row .grid-bubble {
+    width: 35px;
+    height: 35px;
+    border: 1px solid #adb5bd;
+    color: #495057;
+}
+.matching-answer-row .grid-bubble:hover {
+    background-color: #e9ecef;
+    border-color: #007bff;
+}
+.matching-answer-row .grid-bubble.selected {
+    background-color: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+
+/* ========================================================== */
+/* === Doğru/Yalan (Fast Tree) Sualı Üçün Yeni Stillər === */
+/* ========================================================== */
+
+.fast-tree-student-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Hər sətir arasında boşluq */
+}
+
+.fast-tree-student-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background-color: #fff;
+    transition: box-shadow 0.2s;
+}
+.fast-tree-student-row:hover {
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.fast-tree-student-text {
+    font-size: 1.1rem;
+    flex-grow: 1;
+    margin-right: 20px;
+}
+
+.fast-tree-student-options {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.tf-btn {
+    padding: 8px 25px;
+    border: 1px solid #ced4da;
+    background-color: #f8f9fa;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s ease-in-out;
+}
+.tf-btn:hover {
+    border-color: #adb5bd;
+}
+
+.tf-btn.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
 }

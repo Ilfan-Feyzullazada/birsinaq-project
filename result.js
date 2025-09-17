@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const submissionId = urlParams.get('submission_id');
 
-    // Bütün lazımi HTML elementlərini əvvəlcədən seçirik
+    // === SƏHİFƏDƏKİ BÜTÜN DÜZGÜN ELEMENTLƏRİ SEÇİRİK ===
     const resultContainer = document.getElementById('result-container');
     const examDetailsContainer = document.getElementById('exam-details');
     const finalScoreValue = document.getElementById('final-score-value');
@@ -10,16 +10,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const incorrectCount = document.getElementById('incorrect-count');
     const unansweredCount = document.getElementById('unanswered-count');
     const downloadBtn = document.getElementById('download-cert-btn');
-    const certName = document.getElementById('cert-name');
-    const certExamTitle = document.getElementById('cert-exam-title');
-    const certDate = document.getElementById('cert-date');
-    const certScore = document.getElementById('cert-score');
 
+    // YENİ sertifikat şablonu üçün elementlər
+    const newCertName = document.getElementById('cert-name-new');
+    const newCertScore = document.getElementById('cert-score-new');
+    const newCertDate = document.getElementById('cert-date-new');
+    
     if (!submissionId) {
-        resultContainer.innerHTML = `<p style="color: red; text-align: center;">Nəticə ID-si tapılmadı!</p>`;
+        if(resultContainer) resultContainer.innerHTML = `<p style="color: red; text-align: center;">Nəticə ID-si tapılmadı!</p>`;
         return;
     }
 
+    // === MƏLUMATLARI SERVERDƏN BİR DƏFƏ ÇƏKİB HƏR YERİ DOLDURURUQ ===
     fetch(`/api/submission/${submissionId}/result`, { credentials: 'include' })
         .then(response => {
             if (!response.ok) {
@@ -28,11 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return response.json();
         })
         .then(data => {
-            // 1. Ümumi məlumatları doldururuq
-            // result.js
-
             // 1. Ümumi məlumatları doldururuq (YENİ DİZAYN İLƏ)
-            examDetailsContainer.innerHTML = `
+            if(examDetailsContainer) {
+                examDetailsContainer.innerHTML = `
                 <div class="exam-details-grid">
                     <div class="detail-item">
                         <i class="fas fa-book-open"></i>
@@ -64,14 +64,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `;
+            }
 
             // 2. Statistika xanalarını doldururuq
-            finalScoreValue.textContent = data.stats?.final_score ?? 'N/A';
-            correctCount.textContent = data.stats?.correct_count ?? 0;
-            incorrectCount.textContent = data.stats?.incorrect_count ?? 0;
-            unansweredCount.textContent = data.stats?.unanswered_count ?? 0;
+            if(finalScoreValue) finalScoreValue.textContent = data.stats?.final_score ?? 'N/A';
+            if(correctCount) correctCount.textContent = data.stats?.correct_count ?? 0;
+            if(incorrectCount) incorrectCount.textContent = data.stats?.incorrect_count ?? 0;
+            if(unansweredCount) unansweredCount.textContent = data.stats?.unanswered_count ?? 0;
 
-            // 3. Detallı nəticə cədvəllərini yaradırıq
+            // 3. Detallı nəticə cədvəllərini yaradırıq (Sizin kodunuzda olan hissə)
             let resultsHTML = '';
             let hasPendingQuestions = false;
 
@@ -100,12 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         let rowClass = '';
                         let isCorrect = false;
 
-                        // JSON stringi gələrsə, onu array-ə çevirməyə çalışırıq
                         if (q.student_answer && typeof q.student_answer === 'string' && q.student_answer.startsWith('[')) {
                             try { q.student_answer = JSON.parse(q.student_answer); } catch (e) { }
                         }
-
-                        // Cavabın düzgünlüyünü yoxlayan məntiq
+                        
                         if (Array.isArray(q.student_answer) && Array.isArray(q.correct_answer)) {
                             const sortedStudentAnswer = JSON.stringify([...q.student_answer].sort());
                             const sortedCorrectAnswer = JSON.stringify([...q.correct_answer].sort());
@@ -114,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             isCorrect = String(q.student_answer).toLowerCase() === String(q.correct_answer).toLowerCase();
                         }
 
-                        // Sətirlərin rəngini təyin edirik
                         if (q.status === 'pending_review') {
                             hasPendingQuestions = true;
                             rowClass = 'pending-answer';
@@ -125,28 +123,20 @@ document.addEventListener('DOMContentLoaded', () => {
                         } else {
                             rowClass = 'incorrect-answer';
                         }
-
-                        // ==========================================================
-                        // === DÜZƏLDİLMİŞ VİDEO LİNKİ HİSSƏSİ ===
-                        // ==========================================================
+                        
                         let questionTitleHTML = `${index + 1}`;
                         if (data.video_url && q.video_start_time) {
-                            // YouTube linkindən video ID-sini çıxaran daha universal funksiya
                             function getYouTubeID(url) {
                                 const arr = url.split(/(vi\/|v%3D|v=|\/v\/|youtu\.be\/|\/embed\/)/);
                                 return arr[2] !== undefined ? arr[2].split(/[?&]/)[0] : arr[0];
                             }
                             const videoId = getYouTubeID(data.video_url);
-
                             if (videoId) {
                                 let videoLink = `https://www.youtube.com/watch?v=${videoId}&t=${q.video_start_time}s`;
                                 questionTitleHTML = `<a href="${videoLink}" target="_blank" title="Videoizaha bax" style="text-decoration: none; color: inherit;">${index + 1} <i class="fas fa-play-circle"></i></a>`;
                             }
                         }
 
-                        // ==========================================================
-                        // === SUALA SƏRF OLUNAN VAXT HESABLANIR ===
-                        // ==========================================================
                         const timeSpentMs = (data.time_spent && data.time_spent[q.question_id]) ? data.time_spent[q.question_id] : 0;
                         let formattedTime = '0 san';
                         if (timeSpentMs > 0) {
@@ -155,12 +145,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             formattedTime = minutes > 0 ? `${minutes} dəq ${seconds} san` : `${seconds} san`;
                         }
 
-                        // ==========================================================
-                        // === SUALIN MÖVZUSU ƏLAVƏ EDİLİR ===
-                        // ==========================================================
                         const topic = q.topic || 'Təyin edilməyib';
 
-                        // Cədvəlin bir sətrini yaradırıq
                         resultsHTML += `
                             <tr class="${rowClass}">
                                 <td>${questionTitleHTML}</td>
@@ -172,7 +158,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             </tr>
                         `;
                     });
-
                     resultsHTML += `</tbody></table></div>`;
                 });
             }
@@ -181,33 +166,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 resultsHTML += `<div class="pending-notification" style="background-color: #fff3cd; border-left: 5px solid #ffeeba; padding: 15px; margin-top: 20px; border-radius: 5px;"><p><strong>Qeyd:</strong> Sarı rəngli sətirlər müəllim yoxlaması gözləyən cavablardır. Yekun nəticə müəllim yoxladıqdan sonra hesablanacaq.</p></div>`;
             }
 
-            resultContainer.innerHTML = resultsHTML;
+            if(resultContainer) resultContainer.innerHTML = resultsHTML;
 
-            // 4. Sertifikat üçün gizli şablondakı məlumatları doldururuq
-            certName.textContent = data.student_name || '[AD SOYAD]';
-            certExamTitle.textContent = data.exam_title || '[İmtahan Adı]';
-            certDate.textContent = data.submission_date || '[Tarix]';
-            certScore.textContent = data.stats?.final_score ?? '[Bal]';
-
-            // 5. PDF yükləmə düyməsinə event listener əlavə edirik
-            if (downloadBtn) {
-                downloadBtn.addEventListener('click', () => {
-                    const { jsPDF } = window.jspdf;
-                    const certificateElement = document.getElementById('certificate-template');
-
-                    html2canvas(certificateElement, { scale: 3, useCORS: true }).then(canvas => {
-                        const imgData = canvas.toDataURL('image/png');
-                        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-                        const pdfWidth = pdf.internal.pageSize.getWidth();
-                        const pdfHeight = pdf.internal.pageSize.getHeight();
-                        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                        pdf.save(`${data.student_name}-sertifikat.pdf`);
-                    });
-                });
-            }
+            // 4. YENİ sertifikat şablonunu məlumatlarla doldururuq
+            if (newCertName) newCertName.textContent = data.student_name || '[AD SOYAD]';
+            if (newCertScore) newCertScore.textContent = data.stats?.final_score ?? '[Bal]';
+            if (newCertDate) newCertDate.textContent = data.submission_date || '[Tarix]';
         })
         .catch(error => {
             console.error("Nəticə səhifəsində xəta:", error);
-            resultContainer.innerHTML = `<p style="color: red; text-align: center;">Xəta baş verdi: ${error.message}</p>`;
+            if(resultContainer) resultContainer.innerHTML = `<p style="color: red; text-align: center;">Xəta baş verdi: ${error.message}</p>`;
         });
+
+
+    // 5. PDF yükləmə düyməsi üçün DÜZGÜN listener
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+            const certificateElement = document.getElementById('new-certificate-template');
+            if (!certificateElement) {
+                alert("Sertifikat şablonu HTML-də tapılmadı! Zəhmət olmasa, 'result.html' faylını yoxlayın.");
+                return;
+            }
+        
+            const { jsPDF } = window.jspdf;
+            const studentNameForFile = newCertName ? (newCertName.textContent || 'telebe') : 'telebe';
+
+            certificateElement.parentElement.style.left = '0px';
+
+            html2canvas(certificateElement, { scale: 3, useCORS: true }).then(canvas => {
+                certificateElement.parentElement.style.left = '-9999px';
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save(`${studentNameForFile}-sertifikat.pdf`);
+            }).catch(err => {
+                console.error("PDF yaradılarkən xəta:", err);
+                alert("PDF yaradılarkən xəta baş verdi. Brauzer konsoluna baxın.");
+                certificateElement.parentElement.style.left = '-9999px';
+            });
+        });
+    }
 });

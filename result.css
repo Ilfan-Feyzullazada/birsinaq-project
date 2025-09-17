@@ -19,12 +19,19 @@ body::before {
     left: 0;
     width: 100%;
     height: 100vh;
+    
     background-image: url('logo-pattern.png');
     background-repeat: repeat;
-    background-size: 170px; 
+    
+    
+     background-size: 50px;
+    
     filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
-    opacity: 0.3;
-    transform: rotate(-30deg) scale(1.5);
+    opacity: 0.5;
+
+    /* DİAQONAL GÖRÜNÜŞÜ GERİ QAYTARIRIQ */
+    transform: rotate(-30deg) scale(1.8);
+    
     z-index: -1;
 }
 
@@ -168,4 +175,48 @@ body::before {
     .exam-details-grid {
         grid-template-columns: 1fr; /* Bütün elementlər alt-alta düzülür */
     }
+}
+
+
+/* KÖHNƏ SERTİFİKAT STİLLƏRİNİ SİLİB BUNU ƏLAVƏ EDİN */
+.cert-bg-image-template {
+    width: 210mm;
+    height: 297mm;
+    position: relative;
+    background-image: url('sertifikat_bg.jpeg'); /* Arxa fon şəkli */
+    background-size: 100% 100%; /* Şəkli tam ölçüyə uyğunlaşdırır */
+    background-repeat: no-repeat;
+    font-family: 'Segoe UI', 'Inter', sans-serif;
+    color: #0d3d7d; /* Mətn rəngi */
+}
+
+/* Mətnləri şəklin üzərində yerləşdirmək üçün ümumi stil */
+.cert-text-overlay {
+    position: absolute;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* Şagirdin adı */
+.student-name {
+    top: 35%; /* Yuxarıdan 35% məsafədə */
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 40px;
+}
+
+/* Bal */
+.student-score {
+    top: 66%; /* Yuxarıdan 59% məsafədə */
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 60px;
+    color: #8c6400; /* Qızılı rəngə uyğun */
+}
+
+/* Tarix */
+.submission-date {
+    bottom: 11.5%; /* Aşağıdan 11.5% məsafədə */
+    right: 15%; /* Sağdan 15% məsafədə */
+    font-size: 18px;
 }

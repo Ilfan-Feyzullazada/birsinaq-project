@@ -1,7 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- ELEMENTLƏRİN TƏYİN EDİLMƏSİ ---
-
-    // exam-test.js-in yuxarısına
     const questionTimings = {}; // Hər sualın vaxtını burada saxlayacağıq
     let currentQuestionId = null;
     let questionStartTime = null;
@@ -107,6 +105,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 questionWrapper.dataset.questionId = item.id;
                 questionWrapper.className = 'question-wrapper';
 
+                let audioPlayerHTML = '';
+                if (item.audio_path) {
+                    audioPlayerHTML = `
+                    <div class="audio-player-wrapper">
+                        <p><strong>Dinləmə mətni:</strong></p>
+                        <audio controls src="/uploads/${item.audio_path}">Brauzeriniz audio elementini dəstəkləmir.</audio>
+                    </div>`;
+                }
+
                 if (item.isSituational) {
                     let subQuestionsHTML = '';
                     if (item.sub_questions) {
@@ -114,13 +121,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             subQuestionsHTML += `
                             <div class="sub-question">
                                 <p>${sub_q.text}</p>
-                                <textarea name="q${sub_q.id}" class="situational-answer" placeholder="Cavabınızı bura yazın..."></textarea>
+                                <textarea name="q${sub_q.id}" class="situational-answer tinymce-student-editor" placeholder="Cavabınızı bura yazın..."></textarea>
                             </div>`;
                         });
                     }
                     questionWrapper.innerHTML = `
                     <div class="situational-block">
                         <h3>Situasiya (Sual ${overallQuestionCounter})</h3>
+                        ${audioPlayerHTML}
                         <p class="main-text">${item.main_text}</p>
                         ${item.image_path ? `<img src="/uploads/${item.image_path}" alt="Situasiya şəkli">` : ''}
                         <hr>
@@ -140,16 +148,72 @@ document.addEventListener('DOMContentLoaded', () => {
                             </label>`;
                         });
                     } else if (item.question_type === 'open') {
-                        optionsHTML = `<textarea name="q${item.id}" class="open-answer" placeholder="Cavabınızı bura yazın..."></textarea>`;
-                    } else if (item.question_type === 'multiple_choice' && item.options) {
-                        item.options.forEach(opt => {
-                            const optionValue = opt.split(')')[0];
-                            optionsHTML += `<label><input type="checkbox" name="q${item.id}" value="${optionValue}">${opt}</label>`;
-                        });
+                        optionsHTML = `<textarea name="q${item.id}" id="open-answer-${item.id}" class="open-answer tinymce-student-editor" placeholder="Cavabınızı bura yazın..."></textarea>`;
+                    } else if (item.question_type === 'matching') {
+                        let numberedItemsHTML = '';
+                        let letteredItemsHTML = '';
+                        if (item.options.numbered_items) {
+                            item.options.numbered_items.forEach((text, i) => {
+                                numberedItemsHTML += `<li><strong>${i + 1}.</strong> ${text}</li>`;
+                            });
+                        }
+                        if (item.options.lettered_items) {
+                            item.options.lettered_items.forEach((text, i) => {
+                                const letter = String.fromCharCode(65 + i);
+                                letteredItemsHTML += `<li><strong>${letter}.</strong> ${text}</li>`;
+                            });
+                        }
+                        let answerGridHTML = `<div class="matching-answer-grid" data-question-id="${item.id}">`;
+                        if (item.options.numbered_items) {
+                            item.options.numbered_items.forEach((_, i) => {
+                                let answerRow = `<div class="matching-answer-row"><div class="matching-answer-number">${i + 1}</div>`;
+                                if (item.options.lettered_items) {
+                                    item.options.lettered_items.forEach((_, j) => {
+                                        const letter = String.fromCharCode(65 + j);
+                                        answerRow += `<div class="grid-bubble" data-num="${i + 1}" data-letter="${letter}">${letter}</div>`;
+                                    });
+                                }
+                                answerRow += '</div>';
+                                answerGridHTML += answerRow;
+                            });
+                        }
+                        answerGridHTML += '</div>';
+                        optionsHTML = `
+                            <div class="matching-student-container">
+                                <div class="matching-student-items">
+                                    <h4>Nömrələnmiş Bəndlər</h4>
+                                    <ul class="matching-list">${numberedItemsHTML}</ul>
+                                </div>
+                                <div class="matching-student-items">
+                                    <h4>Hərflənmiş Bəndlər</h4>
+                                    <ul class="matching-list">${letteredItemsHTML}</ul>
+                                </div>
+                            </div>
+                            <h5>Cavabınızı qeyd edin:</h5>
+                            ${answerGridHTML}
+                        `;
+                    } else if (item.question_type === 'fast_tree') {
+                        let subQuestionsHTML = '';
+                        if (item.options.sub_questions) {
+                            item.options.sub_questions.forEach((text, i) => {
+                                // --- DÜZƏLİŞ BURADADIR ---
+                                subQuestionsHTML += `
+                                <div class="fast-tree-student-row">
+                                    <span class="fast-tree-student-text">${i + 1}. ${text}</span>
+                                    <div class="fast-tree-student-options" data-question-id="${item.id}" data-sub-id="${i + 1}">
+                                        <button class="tf-btn" data-value="True">True</button>
+                                        <button class="tf-btn" data-value="False">False</button>
+                                    </div>
+                                </div>`;
+                                // --- DÜZƏLİŞİN SONU ---
+                            });
+                        }
+                        optionsHTML = `<div class="fast-tree-student-container">${subQuestionsHTML}</div>`;
                     }
 
                     questionWrapper.innerHTML = `
                     <div class="question-group">
+                        ${audioPlayerHTML}
                         <p>${overallQuestionCounter}. ${item.text}</p>
                         ${item.question_image_path ? `<img src="/uploads/${item.question_image_path}" alt="Sual şəkli">` : ''}
                         <div class="options">${optionsHTML}</div>
@@ -167,67 +231,45 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // === YENİ ƏLAVƏ EDİLMİŞ HİSSƏ ===
-        // İlk sual üçün sayğacı avtomatik başlat
+        tinymce.init({
+            selector: '.tinymce-student-editor',
+            plugins: 'lists charmap',
+            toolbar: 'bold italic underline | bullist numlist | charmap',
+            height: 200,
+            menubar: false,
+            setup: function (editor) {
+                editor.on('change', function () {
+                    tinymce.triggerSave();
+                });
+            }
+        });
+
         const firstQuestion = document.querySelector('.question-wrapper');
         if (firstQuestion) {
             currentQuestionId = firstQuestion.dataset.questionId;
             questionStartTime = new Date().getTime();
         }
-        // ===================================
     }
-
-
-    // Köhnə trackTime funksiyasını və event listener-i silib, bunu əlavə edin
 
     function trackTimeOnInteraction(event) {
         const questionWrapper = event.target.closest('.question-wrapper');
         if (!questionWrapper) return;
-
         const questionId = questionWrapper.dataset.questionId;
-
-        // Əgər yeni suala klikləyibsə və bu əvvəlki sual deyilsə
         if (questionId && questionId !== currentQuestionId) {
             const now = new Date().getTime();
-
-            // Əvvəlki sualın vaxtını yekunlaşdır
             if (currentQuestionId && questionStartTime) {
                 const timeSpent = now - questionStartTime;
                 questionTimings[currentQuestionId] = (questionTimings[currentQuestionId] || 0) + timeSpent;
             }
-
-            // Yeni sual üçün sayğacı başlat
             currentQuestionId = questionId;
             questionStartTime = now;
         }
     }
 
-
     if (questionsBlock) {
         questionsBlock.addEventListener('input', trackTimeOnInteraction);
     }
 
-    // Hər hansı bir cavab variantına kliklədikdə və ya yazı yazdıqda vaxtı izləyirik
-    if (questionsBlock) {
-        questionsBlock.addEventListener('input', (event) => {
-            const questionWrapper = event.target.closest('.question-wrapper');
-            if (questionWrapper) {
-                const questionId = questionWrapper.id.replace('question-', '');
-                trackTime(questionId);
-            }
-        });
-    }
-
-
-
-
-
-
-
-
-
-
-    // --- BÜTÜN DİGƏR FUNKSİYALAR OLDUĞU KİMİ QALIR ---
     function startTimer(durationMinutes) {
         if (!timerDisplay) return;
         let time = durationMinutes * 60;
@@ -242,26 +284,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function finishExam() {
-        // === YENİ ƏLAVƏ: İmtahanı bitirmədən öncə son aktiv sualın vaxtını yekunlaşdırırıq ===
         if (currentQuestionId && questionStartTime) {
             const timeSpent = new Date().getTime() - questionStartTime;
             questionTimings[currentQuestionId] = (questionTimings[currentQuestionId] || 0) + timeSpent;
-            currentQuestionId = null; // Sayğacı sıfırlayırıq
+            currentQuestionId = null;
         }
-        // =================================================================================
+
+        tinymce.triggerSave();
 
         const answers = {};
+
         questionsBlock.querySelectorAll('input[type="radio"]:checked, textarea.open-answer, textarea.situational-answer').forEach(input => {
             const id = input.name.replace('q', '');
             answers[id] = input.value;
         });
-        const checkboxGroups = {};
-        questionsBlock.querySelectorAll('input[type="checkbox"]:checked').forEach(input => {
-            const id = input.name.replace('q', '');
-            if (!checkboxGroups[id]) checkboxGroups[id] = [];
-            checkboxGroups[id].push(input.value);
+
+        questionsBlock.querySelectorAll('.matching-answer-grid').forEach(grid => {
+            const questionId = grid.dataset.questionId;
+            const studentAnswer = {};
+            grid.querySelectorAll('.matching-answer-row').forEach(row => {
+                const selectedBubble = row.querySelector('.grid-bubble.selected');
+                if (selectedBubble) {
+                    studentAnswer[selectedBubble.dataset.num] = selectedBubble.dataset.letter;
+                }
+            });
+            if (Object.keys(studentAnswer).length > 0) {
+                answers[questionId] = studentAnswer;
+            }
         });
-        for (const [key, value] of Object.entries(checkboxGroups)) { answers[key] = value; }
+
+        document.querySelectorAll('.fast-tree-student-options').forEach(optionSet => {
+            const questionId = optionSet.dataset.questionId;
+            const subId = optionSet.dataset.subId;
+            const activeButton = optionSet.querySelector('.tf-btn.active');
+            if (activeButton) {
+                if (!answers[questionId]) {
+                    answers[questionId] = {};
+                }
+                answers[questionId][subId] = (activeButton.dataset.value === 'True') ? 'A' : 'B';
+            }
+        });
 
         const submissionData = {
             examId: examId,
@@ -313,9 +375,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const navButton = document.querySelector(`.question-num[data-question-index='${questionIndex}']`);
         if (!navButton) return;
         let isAnswered = false;
-        const inputs = questionWrapper.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked, textarea');
+        const inputs = questionWrapper.querySelectorAll('input[type="radio"]:checked, input[type="checkbox"]:checked, textarea, .grid-bubble.selected, .tf-btn.active');
         inputs.forEach(input => {
-            if (input.checked || (input.tagName === 'TEXTAREA' && input.value.trim() !== '')) {
+            if (input.checked || (input.tagName === 'TEXTAREA' && input.value.trim() !== '') || input.classList.contains('selected') || input.classList.contains('active')) {
                 isAnswered = true;
             }
         });
@@ -323,23 +385,14 @@ document.addEventListener('DOMContentLoaded', () => {
         else { navButton.classList.remove('answered'); }
     }
 
-
-
-    // exam-test.js faylında DOMContentLoaded içinə əlavə edin
-
-    // Cavab variantı seçildikdə vizual effekt vermək üçün
     if (questionsBlock) {
         questionsBlock.addEventListener('change', (e) => {
-            // Əgər seçilən element radio düymədirsə
             if (e.target.type === 'radio') {
                 const questionGroup = e.target.closest('.question-group');
                 if (questionGroup) {
-                    // Həmin sualın bütün variantlarından "selected" klassını silirik
                     questionGroup.querySelectorAll('.option-label-rich').forEach(label => {
                         label.classList.remove('selected');
                     });
-
-                    // Yalnız seçilmiş variantın olduğu label-ə "selected" klassını əlavə edirik
                     const selectedLabel = e.target.closest('.option-label-rich');
                     if (selectedLabel) {
                         selectedLabel.classList.add('selected');
@@ -349,8 +402,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
-
-
-
+    if (questionsBlock) {
+        questionsBlock.addEventListener('click', (e) => {
+            if (e.target.classList.contains('grid-toggle-btn')) {
+                const questionId = e.target.dataset.questionId;
+                const grid = document.getElementById(`grid-input-${questionId}`);
+                if (grid) {
+                    grid.style.display = (grid.style.display === 'none') ? 'flex' : 'none';
+                }
+            }
+            if (e.target.classList.contains('grid-bubble')) {
+                const bubble = e.target;
+                const container = bubble.closest('.grid-input-container, .matching-answer-grid, .fast-tree-answer-grid');
+                if (!container) return;
+                
+                if (bubble.closest('.matching-answer-row')) {
+                    const row = bubble.closest('.matching-answer-row');
+                    row.querySelectorAll('.grid-bubble').forEach(b => b.classList.remove('selected'));
+                    bubble.classList.add('selected');
+                }
+                
+                handleAnswerChange(bubble);
+            }
+            
+            if (e.target.classList.contains('tf-btn')) {
+                const button = e.target;
+                const parent = button.parentElement;
+                parent.querySelectorAll('.tf-btn').forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                handleAnswerChange(button);
+            }
+        });
+    }
 });

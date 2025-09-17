@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="az">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,10 +8,13 @@
     <link rel="stylesheet" href="organizer.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
 </head>
+
 <body>
 
     <header class="header">
-        <div class="logo"><h1><a href="index.html">BirSınaq</a></h1></div>
+        <div class="logo">
+            <h1><a href="index.html">BirSınaq</a></h1>
+        </div>
         <nav class="auth-buttons">
             <a href="#" id="logout-btn" class="profile-btn">Hesabdan Çıx</a>
         </nav>
@@ -65,23 +69,54 @@
                     <span class="label">Bank Kartı</span>
                     <span id="display-card" class="value">Yüklənir...</span>
                 </div>
-                
+
                 <div class="edit-actions">
                     <button id="edit-profile-btn" class="edit-btn">Məlumatları Dəyişdir</button>
                 </div>
             </div>
 
             <div class="content-card">
-                 <h3>Dəvət Linki</h3>
-                 <div class="invite-link-box">
+                <h3>Dəvət Linki</h3>
+                <div class="invite-link-box">
                     <p>Şagirdləri dəvət etmək üçün şəxsi linkiniz:</p>
                     <div class="link-container">
                         <input type="text" id="inviteLink" value="Linkiniz yaradılır..." readonly>
-                        <button class="copy-btn" onclick="copyLink()" title="Linki Kopyala"><i class="fas fa-copy"></i></button>
+                        <button class="copy-btn" onclick="copyLink()" title="Linki Kopyala"><i
+                                class="fas fa-copy"></i></button>
                     </div>
                 </div>
             </div>
-            
+
+
+            <div id="affiliate-section" class="content-card" style="display: none;">
+                <h3>Əlaqələndirici Sistemi</h3>
+                <div class="invite-link-box">
+                    <p>Əlaqələndiriciləri dəvət etmək üçün şəxsi linkiniz:</p>
+                    <div class="link-container">
+                        <input type="text" id="affiliateInviteLink" value="Linkiniz yaradılır..." readonly>
+                        <button class="copy-btn" id="copyAffiliateLinkBtn" title="Linki Kopyala"><i
+                                class="fas fa-copy"></i></button>
+                    </div>
+                </div>
+                <div class="table-wrapper" style="margin-top: 20px;">
+                    <h4>Dəvət Etdiyiniz Əlaqələndiricilər</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ad Soyad</th>
+                                <th>E-poçt</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="affiliate-list-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+
+
+
             <div class="content-card table-wrapper">
                 <h3>Dəvət Edilən Şagirdlərin Nəticələri</h3>
                 <div id="student-list-wrapper">
@@ -95,7 +130,7 @@
                             </tr>
                         </thead>
                         <tbody id="student-list-body">
-                            </tbody>
+                        </tbody>
                     </table>
                 </div>
             </div>
@@ -130,4 +165,5 @@
 
     <script src="organizer-profile.js"></script>
 </body>
+
 </html>

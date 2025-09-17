@@ -28,13 +28,14 @@ body::before {
     background-image: url('logo-pattern.png');
     background-repeat: repeat;
     
-    background-size: 170px; 
+    
+     background-size: 50px;
     
     filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
-    opacity: 0.3;
+    opacity: 0.5;
 
     /* DİAQONAL GÖRÜNÜŞÜ GERİ QAYTARIRIQ */
-    transform: rotate(-30deg) scale(1.5);
+    transform: rotate(-30deg) scale(1.8);
     
     z-index: -1;
 }
@@ -145,3 +146,6 @@ body::before {
     transform: translateY(-10px);
     box-shadow: 0 15px 30px rgba(0,0,0,0.2);
 }
+
+
+
