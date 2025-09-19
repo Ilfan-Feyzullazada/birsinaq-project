@@ -36,19 +36,13 @@ body::before {
     left: 0;
     width: 100%;
     height: 100vh;
-    
     background-image: url('logo-pattern.png');
     background-repeat: repeat;
-    
-    
-     background-size: 50px;
-    
+    /* ƏSAS DƏYİŞİKLİK BURADADIR: */
+    background-size: 120px 120px; /* Həm eni, həm hündürlüyü eyni edirik ki, simmetrik olsun */
+    opacity: 0.25;          
     filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
-    opacity: 0.5;
-
-    /* DİAQONAL GÖRÜNÜŞÜ GERİ QAYTARIRIQ */
     transform: rotate(-30deg) scale(1.8);
-    
     z-index: -1;
 }
 
