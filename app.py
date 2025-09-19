@@ -91,12 +91,13 @@ class Organizer(db.Model, UserMixin):
     # Bu yeni klassı app.py-a əlavə edin
 # app.py -> Köhnə Affiliate class-ını bununla əvəz edin
 # app.py -> Köhnə Affiliate class-ını bununla əvəz edin
+# app.py -> Köhnə Affiliate class-ını bununla tam əvəz edin
 class Affiliate(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     contact = db.Column(db.String(100), nullable=True)
-    bank_account = db.Column(db.String(16), nullable=True) # <<< YENİ SÜTUN
+    bank_account = db.Column(db.String(16), nullable=True)
     password = db.Column(db.String(100), nullable=False)
     student_invite_code = db.Column(db.String(10), unique=True, nullable=False)
     balance = db.Column(db.Float, nullable=False, default=0.0)
@@ -104,9 +105,10 @@ class Affiliate(db.Model, UserMixin):
     parent_organizer_id = db.Column(db.Integer, db.ForeignKey('organizer.id'), nullable=False)
     parent_organizer = db.relationship('Organizer', backref='affiliates')
     registered_students = db.relationship('User', backref='affiliate', lazy=True)
-    def get_id(self): return f"affiliate-{self.id}"
-    
 
+    # DÜZƏLİŞ: Bu metod class-ın içində olmalıdır
+    def get_id(self):
+        return f"affiliate-{self.id}"
 # app.py faylında Teacher klassını bununla əvəz edin
 class Teacher(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -295,16 +297,19 @@ def seed_db_command():
         print(f"Baza doldurularkən xəta baş verdi: {e}")
 
 # --- FLASK-LOGIN USER LOADER ---
+# app.py faylında
 @login_manager.user_loader
 def load_user(user_id_str):
     if not user_id_str or '-' not in user_id_str: return None
     user_type, user_id = user_id_str.split('-', 1)
-    models = {'user': User, 'admin': Admin, 'teacher': Teacher, 'organizer': Organizer}
+    
+    # DÜZƏLİŞ: "affiliate": Affiliate əlavə olundu
+    models = {'user': User, 'admin': Admin, 'teacher': Teacher, 'organizer': Organizer, 'affiliate': Affiliate}
+    
     model = models.get(user_type)
     if model:
         return model.query.get(int(user_id))
     return None
-
 # --- API ROUTES ---
 
 # --- ADMIN PANEL API ---
@@ -869,7 +874,6 @@ def organizer_login():
     affiliate = Affiliate.query.filter_by(email=email).first()
     if affiliate and bcrypt.check_password_hash(affiliate.password, password):
         login_user(affiliate, remember=True)
-        # Əlaqələndiricilər də eyni profil səhifəsinə yönlənir
         return jsonify({'message': 'Giriş uğurludur!'})
 
     return jsonify({'message': 'E-poçt və ya şifrə yanlışdır'}), 401
@@ -1252,10 +1256,15 @@ def update_organizer(org_id):
 @app.route('/api/organizer/students')
 @login_required
 def get_organizer_students():
-    if not isinstance(current_user, Organizer):
+    # DÜZƏLİŞ BURADADIR
+    if not (isinstance(current_user, Organizer) or isinstance(current_user, Affiliate)):
         return jsonify({'message': 'Yetkiniz yoxdur'}), 403
     
-    students = User.query.filter_by(organizer_id=current_user.id).all()
+    # Hər iki istifadəçi növünün şagirdlərini gətirmək üçün
+    if isinstance(current_user, Organizer):
+        students = User.query.filter_by(organizer_id=current_user.id).all()
+    else: # Deməli Affiliate-dir
+        students = User.query.filter_by(affiliate_id=current_user.id).all()
     
     student_list = []
     for student in students:
@@ -1279,32 +1288,45 @@ def get_organizer_students():
 @app.route('/api/organizer/profile')
 @login_required
 def organizer_profile():
-    if not isinstance(current_user, Organizer):
+    # DÜZƏLİŞ BURADADIR
+    if not (isinstance(current_user, Organizer) or isinstance(current_user, Affiliate)):
         return jsonify({'message': 'Yetkiniz yoxdur'}), 403
 
     # Təşkilatçının cəlb etdiyi əlaqələndiricilərin siyahısı
     affiliates_data = []
-    for aff in current_user.affiliates:
-        affiliates_data.append({
-            "id": aff.id,
-            "name": aff.name,
-            "email": aff.email
-        })
+    # Yalnız Organizer-lər əlaqələndirici dəvət edə bildiyi üçün yoxlama əlavə edirik
+    if isinstance(current_user, Organizer):
+        for aff in current_user.affiliates:
+            affiliates_data.append({
+                "id": aff.id,
+                "name": aff.name,
+                "email": aff.email
+            })
 
-    return jsonify({
+    # Ortak məlumatları qaytarırıq
+    response_data = {
         'name': current_user.name,
         'contact': current_user.contact,
-        'bank_account': current_user.bank_account,
         'email': current_user.email,
-        'invite_code': current_user.invite_code,
-        'balance': current_user.balance,
-        # Yeni məlumatlar
-        'can_invite_affiliates': current_user.can_invite_affiliates,
-        'affiliate_invite_code': current_user.affiliate_invite_code,
-        'affiliates': affiliates_data
-    })
+        'balance': current_user.balance
+    }
 
+    # Hər istifadəçi növünə görə xüsusi məlumatları əlavə edirik
+    if isinstance(current_user, Organizer):
+        response_data.update({
+            'bank_account': current_user.bank_account,
+            'invite_code': current_user.invite_code,
+            'can_invite_affiliates': current_user.can_invite_affiliates,
+            'affiliate_invite_code': current_user.affiliate_invite_code,
+            'affiliates': affiliates_data
+        })
+    elif isinstance(current_user, Affiliate):
+         response_data.update({
+            'bank_account': current_user.bank_account,
+            'invite_code': current_user.student_invite_code # Affiliate üçün şagird dəvət kodu
+        })
 
+    return jsonify(response_data)
 
 
 # FAYLIN ƏN SONUNA BU İKİ FUNKSİYANI ƏLAVƏ EDİN
@@ -1877,12 +1899,19 @@ def admin_reset_affiliate_balance(affiliate_id):
     db.session.commit()
     return jsonify({'message': f"'{affiliate.name}' adlı əlaqələndiricinin balansı sıfırlandı."})
 
+# app.py faylında
 @app.route('/api/organizer/my-affiliates-details')
 @login_required
 def get_my_affiliates_details():
+    # Əgər daxil olan istifadəçi Affiliate-dirsə, xəta vermirik, sadəcə boş cavab qaytarırıq.
+    if isinstance(current_user, Affiliate):
+        return jsonify([])
+
+    # Əgər Organizer deyilsə (və Affiliate də deyilsə), o zaman icazə yoxdur.
     if not isinstance(current_user, Organizer): 
         return jsonify({'message': 'Yetkiniz yoxdur'}), 403
     
+    # Qalan kod olduğu kimi qalır...
     affiliates_query = db.session.query(
         Affiliate,
         func.count(func.distinct(User.id)).label('registered_count'),
