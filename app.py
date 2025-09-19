@@ -5,6 +5,7 @@ import uuid
 import click
 import json
 from datetime import datetime
+from datetime import timedelta
 from collections import defaultdict
 
 from flask import send_from_directory
@@ -37,6 +38,8 @@ app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'false').lower() in 
 app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() in ['true', 'on', '1']
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@birsinaq.az')
 app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'uploads')
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=60)
+
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # --- Genişləndirmələrin (Extensions) Başladılması ---
@@ -1931,3 +1934,5 @@ def get_my_affiliates_details():
     } for aff, registered_count, participated_count in affiliates_query]
     
     return jsonify(result)
+
+
