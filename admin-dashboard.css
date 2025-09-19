@@ -22,11 +22,10 @@ body::before {
     height: 100vh;
     background-image: url('logo-pattern.png');
     background-repeat: repeat;
-    /* ƏSAS DƏYİŞİKLİK BURADADIR: */
-    background-size: 120px 120px; /* Həm eni, həm hündürlüyü eyni edirik ki, simmetrik olsun */
-    opacity: 0.25;          
+    background-size: 250px; /* <<< İSTƏDİYİNİZ BÖYÜK ÖLÇÜ */
+    opacity: 0.2;
     filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
-    transform: rotate(-30deg) scale(1.8);
+    /* transform sətrini tamamilə silirik ki, düz və simmetrik olsun */
     z-index: -1;
 }
 
