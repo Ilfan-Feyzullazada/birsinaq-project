@@ -8,21 +8,22 @@ body {
     margin: 0;
     padding: 0;
     color: #333;
-    background-color: #fff; 
-    position: relative; 
+    background-color: #23558f;
+    /* <-- SİZİN İSTƏDİYİNİZ MAVİ ARXA FON RƏNGİ */
+    position: relative;
     z-index: 0;
 }
 
 body::before {
     content: '';
     position: fixed;
-    top: 0;
-    left: 0;
+    top: 5%;
+    left: 0%;
     width: 100%;
     height: 100vh;
     background-image: url('logo-pattern.png');
     background-repeat: repeat;
-    background-size: 250px; /* <<< İSTƏDİYİNİZ BÖYÜK ÖLÇÜ */
+    background-size: 430px; /* <<< İSTƏDİYİNİZ BÖYÜK ÖLÇÜ */
     opacity: 0.2;
     filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
     /* transform sətrini tamamilə silirik ki, düz və simmetrik olsun */
