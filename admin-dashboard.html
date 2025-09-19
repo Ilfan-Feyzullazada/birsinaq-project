@@ -1,13 +1,12 @@
 <!DOCTYPE html>
 <html lang="az">
 
-<script src="https://cdn.tiny.cloud/1/17wsaay9bvtwerusbdhmkfnkmgfyhyf0lit55fx2sc47537l/tinymce/7/tinymce.min.js"
-    referrerpolicy="origin"></script>
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Paneli</title>
+    <script src="https://cdn.tiny.cloud/1/17wsaay9bvtwerusbdhmkfnkmgfyhyf0lit55fx2sc47537l/tinymce/7/tinymce.min.js"
+        referrerpolicy="origin"></script>
     <link rel="stylesheet" href="admin-dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -21,7 +20,7 @@
                 <li class="nav-item active"><a href="#exams"><i class="fas fa-file-alt"></i> İmtahanlar</a></li>
                 <li class="nav-item"><a href="#students"><i class="fas fa-user-graduate"></i> Şagirdlər</a></li>
                 <li class="nav-item"><a href="#organizers"><i class="fas fa-users"></i> Təşkilatçılar</a></li>
-                <li class="nav-item"><a href="#teachers"><i class="fas fa-user-tie"></i> Müəllim Qeydiyyatı</a></li>
+                <li class="nav-item"><a href="#teachers"><i class="fas fa-user-tie"></i> Müəllimlər</a></li>
                 <li class="nav-item"><a href="#create-exam"><i class="fas fa-plus-circle"></i> İmtahan Yarat</a></li>
                 <li class="nav-item"><a href="#settings"><i class="fas fa-cog"></i> Ayarlar</a></li>
             </ul>
@@ -34,7 +33,6 @@
             <header class="dashboard-header">
                 <h1>Xoş gəlmisiniz, Admin!</h1>
             </header>
-
             <div class="dashboard-leaderboard-container">
                 <div class="leaderboard-row">
                     <h3><i class="fas fa-calendar-day"></i> Ayın Ən Yaxşıları</h3>
@@ -49,7 +47,6 @@
                     </div>
                 </div>
             </div>
-
             <h2>Mövcud İmtahanlar</h2>
             <div class="table-container">
                 <table>
@@ -67,31 +64,46 @@
         </section>
 
         <section id="students" class="dashboard-section">
-            <h2>Şagirdlər</h2>
-            <div class="table-container" style="margin-bottom: 40px;">
-                <h3>Qeydiyyatlı Şagirdlər</h3>
+            <header class="dashboard-header">
+                <h1>Şagird Nəticələri</h1>
+            </header>
+            <div class="filters-container">
+                <div class="form-group">
+                    <label for="filter-exam-type">İmtahan Növü:</label>
+                    <select id="filter-exam-type">
+                        <option value="">Bütün Növlər</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="filter-class-name">Sinif:</label>
+                    <select id="filter-class-name">
+                        <option value="">Bütün Siniflər</option>
+                    </select>
+                </div>
+                <button id="clear-filters-btn" class="clear-btn">Filterləri Təmizlə</button>
+            </div>
+            <h2 style="margin-top: 40px;">Qeydiyyatlı Şagirdlər</h2>
+            <div class="table-container">
                 <table>
                     <thead>
                         <tr>
-                            <th>Ad Soyad</th>
-                            <th>E-poçt</th>
-                            <th>Məktəb</th>
-                            <th>Sinif</th>
-                            <th>İmtahan Sayı</th>
+                            <th>Şagird Adı</th>
+                            <th>İmtahan Adı</th>
+                            <th>Bal</th>
+                            <th>Tarix</th>
                         </tr>
                     </thead>
                     <tbody id="registered-students-table-body"></tbody>
                 </table>
             </div>
+            <h2 style="margin-top: 40px;">Qonaq İştirakçılar</h2>
             <div class="table-container">
-                <h3>Qonaq İştirakçılar (Hesaba bağlanmamış)</h3>
                 <table>
                     <thead>
                         <tr>
                             <th>Ad</th>
-                            <th>E-poçt</th>
-                            <th>İmtahan</th>
-                            <th>Nəticə</th>
+                            <th>İmtahan Adı</th>
+                            <th>Bal</th>
                             <th>Tarix</th>
                         </tr>
                     </thead>
@@ -101,19 +113,43 @@
         </section>
 
         <section id="organizers" class="dashboard-section">
-            <h2>Təşkilatçılar</h2>
-            <div class="table-container">
+            <h2>Tərəfdaşların İdarə Edilməsi</h2>
+
+            <div class="table-container" style="margin-bottom: 40px;">
+                <h3>Kordinatorlar (Təşkilatçılar)</h3>
                 <table>
                     <thead>
                         <tr>
                             <th>Ad Soyad</th>
-                            <th>E-poçt</th>
+                            <th>E-poçt / Əlaqə</th>
+                            <th>Bank Hesabı</th>
                             <th>Balans (AZN)</th>
                             <th>Status</th>
+                            <th>Komissiya (AZN)</th>
+                            <th>Cəlb Edilən Şagird (İştirak Edən)</th>
                             <th>Əməliyyatlar</th>
                         </tr>
                     </thead>
                     <tbody id="organizers-table-body">
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-container">
+                <h3>Əlaqələndiricilər</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Ad Soyad</th>
+                            <th>E-poçt / Əlaqə</th>
+                            <th>Cəlb Edən Kordinator</th>
+                            <th>Balans (AZN)</th>
+                            <th>Komissiya (AZN)</th>
+                            <th>Cəlb Edilən Şagird (İştirak Edən)</th>
+                            <th>Əməliyyatlar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="affiliates-table-body">
                     </tbody>
                 </table>
             </div>
@@ -175,14 +211,16 @@
                             <label for="exam-type">İmtahan Növü</label>
                             <div class="select-with-add">
                                 <select id="exam-type" required></select>
-                                <button type="button" class="add-new-meta-btn" data-type="exam-types" data-name="İmtahan Növü">+</button>
+                                <button type="button" class="add-new-meta-btn" data-type="exam-types"
+                                    data-name="İmtahan Növü">+</button>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="class-name">Sinif</label>
                             <div class="select-with-add">
                                 <select id="class-name" required></select>
-                                <button type="button" class="add-new-meta-btn" data-type="class-names" data-name="Sinif">+</button>
+                                <button type="button" class="add-new-meta-btn" data-type="class-names"
+                                    data-name="Sinif">+</button>
                             </div>
                         </div>
                     </div>
@@ -201,7 +239,8 @@
                     <div class="form-group">
                         <label>Dərc Olunma Statusu</label>
                         <div class="radio-group">
-                            <label><input type="radio" name="publishStatus" value="immediate" checked> Dərhal Dərc Et</label>
+                            <label><input type="radio" name="publishStatus" value="immediate" checked> Dərhal Dərc
+                                Et</label>
                             <label><input type="radio" name="publishStatus" value="scheduled"> Tarixə Planla</label>
                         </div>
                     </div>
@@ -212,7 +251,8 @@
                     <hr class="form-hr">
                     <h3>Suallar</h3>
                     <div id="questions-container"></div>
-                    <button type="button" id="add-question-btn" class="add-btn"><i class="fas fa-plus"></i> Sual Əlavə Et</button>
+                    <button type="button" id="add-question-btn" class="add-btn"><i class="fas fa-plus"></i> Sual Əlavə
+                        Et</button>
                     <hr class="form-hr">
                     <button type="submit" id="exam-submit-btn" class="submit-btn">Yadda Saxla</button>
                 </form>
@@ -260,12 +300,15 @@
                     <h3>Təhlükəsizlik Məlumatı</h3>
                     <ul>
                         <li><i class="fas fa-check-circle"></i> Şifrəniz ən az 8 simvoldan ibarət olmalıdır.</li>
-                        <li><i class="fas fa-check-circle"></i> Güclü şifrə üçün böyük/kiçik hərflər, rəqəmlər və simvollardan istifadə edin.</li>
-                        <li><i class="fas fa-check-circle"></i> Şifrənizi heç kimlə paylaşmayın və mütəmadi olaraq yeniləyin.</li>
+                        <li><i class="fas fa-check-circle"></i> Güclü şifrə üçün böyük/kiçik hərflər, rəqəmlər və
+                            simvollardan istifadə edin.</li>
+                        <li><i class="fas fa-check-circle"></i> Şifrənizi heç kimlə paylaşmayın və mütəmadi olaraq
+                            yeniləyin.</li>
                     </ul>
                 </div>
             </div>
         </section>
+
     </main>
 
     <div id="organizer-edit-modal" class="modal" style="display: none;">
@@ -274,31 +317,20 @@
             <h2>Təşkilatçı Məlumatlarını Redaktə Et</h2>
             <form id="organizer-edit-form">
                 <input type="hidden" id="edit-org-id">
-                <div class="form-group">
-                    <label for="edit-org-name">Ad və Soyad</label>
-                    <input type="text" id="edit-org-name" required readonly>
-                </div>
-                <div class="form-group">
-                    <label for="edit-org-email">E-poçt</label>
-                    <input type="email" id="edit-org-email" required readonly>
-                </div>
-                <div class="form-group">
-                    <label for="edit-org-contact">Əlaqə Nömrəsi</label>
-                    <input type="text" id="edit-org-contact" required readonly>
-                </div>
-                <div class="form-group">
-                    <label for="edit-org-bank">Bank Kartı</label>
-                    <input type="text" id="edit-org-bank" required readonly>
-                </div>
-                <div class="form-group">
-                    <label for="edit-org-commission">Bonus Məbləği (AZN)</label>
-                    <input type="number" id="edit-org-commission" step="0.01" min="0" required>
-                </div>
+                <div class="form-group"><label for="edit-org-name">Ad və Soyad</label><input type="text"
+                        id="edit-org-name" required readonly></div>
+                <div class="form-group"><label for="edit-org-email">E-poçt</label><input type="email"
+                        id="edit-org-email" required readonly></div>
+                <div class="form-group"><label for="edit-org-contact">Əlaqə Nömrəsi</label><input type="text"
+                        id="edit-org-contact" required readonly></div>
+                <div class="form-group"><label for="edit-org-bank">Bank Kartı</label><input type="text"
+                        id="edit-org-bank" required readonly></div>
+                <div class="form-group"><label for="edit-org-commission">Bonus Məbləği (AZN)</label><input type="number"
+                        id="edit-org-commission" step="0.01" min="0" required></div>
                 <button type="submit" class="submit-btn">Yadda Saxla</button>
             </form>
         </div>
     </div>
-
     <div id="affiliate-settings-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <span id="close-affiliate-modal-btn" class="close-btn">&times;</span>
@@ -307,24 +339,17 @@
                 <input type="hidden" id="affiliate-org-id">
                 <div class="form-group toggle-group">
                     <label for="can-invite-affiliates">Əlaqələndirici dəvət etməyə icazə verilsin?</label>
-                    <label class="switch">
-                        <input type="checkbox" id="can-invite-affiliates">
-                        <span class="slider round"></span>
-                    </label>
+                    <label class="switch"><input type="checkbox" id="can-invite-affiliates"><span
+                            class="slider round"></span></label>
                 </div>
-                <div class="form-group">
-                    <label for="affiliate-limit">Dəvət Limiti (say)</label>
-                    <input type="number" id="affiliate-limit" min="0" required>
-                </div>
-                <div class="form-group">
-                    <label for="affiliate-commission">Hər Əlaqələndirici üçün Komissiya (AZN)</label>
-                    <input type="number" id="affiliate-commission" step="0.01" min="0" required>
-                </div>
+                <div class="form-group"><label for="affiliate-limit">Dəvət Limiti (say)</label><input type="number"
+                        id="affiliate-limit" min="0" required></div>
+                <div class="form-group"><label for="affiliate-commission">Hər Əlaqələndirici üçün Komissiya
+                        (AZN)</label><input type="number" id="affiliate-commission" step="0.01" min="0" required></div>
                 <button type="submit" class="submit-btn">Yadda Saxla</button>
             </form>
         </div>
     </div>
-
     <div id="student-details-modal" class="modal" style="display: none;">
         <div class="modal-content">
             <span id="close-student-modal-btn" class="close-btn">&times;</span>

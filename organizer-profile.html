@@ -51,6 +51,7 @@
         </div>
 
         <div class="dashboard-content">
+
             <div class="content-card">
                 <h3>Şəxsi Məlumatlar</h3>
                 <div class="info-item">
@@ -69,7 +70,6 @@
                     <span class="label">Bank Kartı</span>
                     <span id="display-card" class="value">Yüklənir...</span>
                 </div>
-
                 <div class="edit-actions">
                     <button id="edit-profile-btn" class="edit-btn">Məlumatları Dəyişdir</button>
                 </div>
@@ -81,12 +81,12 @@
                     <p>Şagirdləri dəvət etmək üçün şəxsi linkiniz:</p>
                     <div class="link-container">
                         <input type="text" id="inviteLink" value="Linkiniz yaradılır..." readonly>
-                        <button class="copy-btn" onclick="copyLink()" title="Linki Kopyala"><i
-                                class="fas fa-copy"></i></button>
+                        <button class="copy-btn" onclick="copyLink()" title="Linki Kopyala">
+                            <i class="fas fa-copy"></i>
+                        </button>
                     </div>
                 </div>
             </div>
-
 
             <div id="affiliate-section" class="content-card" style="display: none;">
                 <h3>Əlaqələndirici Sistemi</h3>
@@ -94,28 +94,31 @@
                     <p>Əlaqələndiriciləri dəvət etmək üçün şəxsi linkiniz:</p>
                     <div class="link-container">
                         <input type="text" id="affiliateInviteLink" value="Linkiniz yaradılır..." readonly>
-                        <button class="copy-btn" id="copyAffiliateLinkBtn" title="Linki Kopyala"><i
-                                class="fas fa-copy"></i></button>
+                        <button class="copy-btn" id="copyAffiliateLinkBtn" title="Linki Kopyala">
+                            <i class="fas fa-copy"></i>
+                        </button>
                     </div>
                 </div>
-                <div class="table-wrapper" style="margin-top: 20px;">
-                    <h4>Dəvət Etdiyiniz Əlaqələndiricilər</h4>
+            </div>
+
+            <div id="my-affiliates-section" class="content-card" style="display: none;">
+                <h3>Cəlb Etdiyim Əlaqələndiricilər</h3>
+                <div class="table-wrapper">
                     <table>
                         <thead>
                             <tr>
                                 <th>Ad Soyad</th>
-                                <th>E-poçt</th>
-                                <th>Status</th>
+                                <th>Əlaqə / Bank Hesabı</th>
+                                <th>Balans (AZN)</th>
+                                <th>Komissiya (AZN)</th>
+                                <th>Şagird Sayı (İştirak)</th>
+                                <th>Əməliyyatlar</th>
                             </tr>
                         </thead>
-                        <tbody id="affiliate-list-body">
-                        </tbody>
+                        <tbody id="my-affiliates-list-body"></tbody>
                     </table>
                 </div>
             </div>
-
-
-
 
             <div class="content-card table-wrapper">
                 <h3>Dəvət Edilən Şagirdlərin Nəticələri</h3>
@@ -129,8 +132,7 @@
                                 <th>Tarix</th>
                             </tr>
                         </thead>
-                        <tbody id="student-list-body">
-                        </tbody>
+                        <tbody id="student-list-body"></tbody>
                     </table>
                 </div>
             </div>

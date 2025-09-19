@@ -146,3 +146,31 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Profil Məlumatlarını Dəyişdirmə Funksiyası ---
     // Bu hissə dəyişməz qalıb
 });
+
+
+
+
+// ===== Çıxış (Logout) Düyməsinin Məntiqi =====
+const logoutBtn = document.getElementById('logout-btn');
+
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', (e) => {
+        e.preventDefault(); // Linkin standart davranışını ləğv edir
+        
+        fetch('/api/logout', { 
+            method: 'POST', 
+            credentials: 'include' 
+        })
+        .then(response => {
+            if (response.ok) {
+                // Uğurlu çıxışdan sonra login səhifəsinə yönləndiririk
+                window.location.href = 'login.html';
+            } else {
+                alert("Çıxış zamanı xəta baş verdi.");
+            }
+        })
+        .catch(error => {
+            console.error('Çıxış xətası:', error);
+        });
+    });
+}

@@ -1,5 +1,3 @@
-// teacher.js faylının bütün məzmununu bununla əvəz edin
-
 document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('pending-reviews-container');
     const statsContainer = document.getElementById('teacher-stats-container'); // Statistika üçün
@@ -59,11 +57,29 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (item.type === 'situational') {
                             let subAnswersHTML = '';
                             item.sub_answers.forEach(ans => {
-                                // HƏR SUAL ÜÇÜN OLAN "TƏSDİQLƏ" DÜYMƏSİ BURADAN SİLİNİR
+                                // ===== ŞƏKİLLƏRİ GÖSTƏRMƏK ÜÇÜN YENİ BLOK BAŞLAYIR =====
+                                let imagesHTML = '';
+                                if (ans.images && ans.images.length > 0) {
+                                    imagesHTML += '<div class="uploaded-images-container">';
+                                    ans.images.forEach(imgPath => {
+                                        imagesHTML += `
+                                            <a href="/uploads/${imgPath}" target="_blank" title="Şəkli yeni pəncərədə aç">
+                                                <img src="/uploads/${imgPath}" class="uploaded-image" alt="Şagirdin cavabı">
+                                            </a>`;
+                                    });
+                                    imagesHTML += '</div>';
+                                }
+                                // ===== ŞƏKİLLƏRİ GÖSTƏRMƏK ÜÇÜN YENİ BLOK BİTİR =====
+
                                 subAnswersHTML += `
                                 <div class="sub-answer-block" data-answer-id="${ans.answer_id}">
                                     <p class="question-text">${ans.question_text}</p>
-                                    <div class="student-answer">${ans.student_answer || "Cavab verilməyib"}</div>
+                                    
+                                    ${imagesHTML} 
+
+                                    <div class="student-answer" style="${ans.student_answer ? '' : 'display:none;'}">
+                                       ${ans.student_answer || ""}
+                                    </div>
                                     <div class="grading-form">
                                          <div class="form-group">
                                             <label for="score-${ans.answer_id}">Bal:</label>
@@ -87,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     });
 
-                    // BÜTÜN CAVABLARDAN SONRA ÜMUMİ DÜYMƏ ƏLAVƏ EDİLİR
                     submissionGroup.innerHTML = `
                     <div class="submission-header" data-target="submission-body-${sub.submission_id}">
                         <div class="student-info">
@@ -113,7 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getScoreOptions(examType) {
-        // Bu funksiya dəyişməz qalır
         if (examType === 'Buraxılış') {
             return `<option value="0">0</option><option value="${1 / 3}">1/3</option><option value="${1 / 2}">1/2</option><option value="${2 / 3}">2/3</option><option value="1">1</option>`;
         } else if (examType === 'Blok') {
@@ -123,7 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     container.addEventListener('click', (e) => {
-        // Akkordeon məntiqi
         const header = e.target.closest('.submission-header');
         if (header) {
             const body = document.getElementById(header.dataset.target);
@@ -133,7 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // YENİ ÜMUMİ TƏSDİQLƏMƏ MƏNTİQİ
         if (e.target.classList.contains('submit-all-grades-btn')) {
             const btn = e.target;
             const submissionId = btn.dataset.submissionId;
@@ -160,15 +172,12 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(res => res.json())
             .then(result => {
                 if (result.message.includes('uğurla')) {
-                    // Uğurlu olarsa, həmin şagirdin bütün blokunu səhifədən silirik
                     const submissionGroup = document.getElementById(`submission-group-${submissionId}`);
                     submissionGroup.style.transition = 'opacity 0.5s ease';
                     submissionGroup.style.opacity = '0';
                     setTimeout(() => {
                         submissionGroup.remove();
-                        // Statistikanı yeniləyirik
                         loadTeacherStats();
-                        // Əgər başqa yoxlanılacaq cavab qalmayıbsa, mesaj göstəririk
                         if (container.children.length === 0) {
                             container.innerHTML = '<p class="no-reviews-message">Bütün cavablar yoxlanıldı. Təşəkkürlər!</p>';
                         }

@@ -7,8 +7,8 @@ body {
     margin: 0;
     padding: 0;
     color: #333;
-    background-color: #fff; 
-    position: relative; 
+    background-color: #fff;
+    position: relative;
     z-index: 0;
 }
 
@@ -19,19 +19,19 @@ body::before {
     left: 0;
     width: 100%;
     height: 100vh;
-    
+
     background-image: url('logo-pattern.png');
     background-repeat: repeat;
-    
-    
-     background-size: 50px;
-    
+
+
+    background-size: 50px;
+
     filter: invert(15%) sepia(100%) hue-rotate(190deg) saturate(400%) contrast(2);
     opacity: 0.5;
 
     /* DİAQONAL GÖRÜNÜŞÜ GERİ QAYTARIRIQ */
     transform: rotate(-30deg) scale(1.8);
-    
+
     z-index: -1;
 }
 
@@ -41,48 +41,170 @@ body::before {
     align-items: center;
     padding: 20px 50px;
     background-color: #fff;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.logo h1 { margin: 0; font-size: 48px; color: #007BFF; }
-.logo h1 a { text-decoration: none; color: inherit; }
+.logo h1 {
+    margin: 0;
+    font-size: 48px;
+    color: #007BFF;
+}
 
-.result-page-container { display: flex; justify-content: center; padding: 40px 20px; }
+.logo h1 a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.result-page-container {
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+}
 
 .result-card {
     background-color: #fff;
     padding: 30px 40px;
     border-radius: 15px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
     width: 100%;
     max-width: 900px;
 }
 
-.result-card h2 { text-align: center; color: #007BFF; margin-bottom: 20px; }
-.exam-details { text-align: center; margin-bottom: 30px; color: #555; font-size: 1.1rem; }
-.summary-stats { display: flex; justify-content: space-around; text-align: center; padding: 20px; margin: 20px 0; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6; }
-.stat-item { padding: 10px; }
-.stat-item h4 { margin: 0 0 5px 0; font-size: 1rem; color: #6c757d; }
-.stat-item p { margin: 0; font-size: 1.5rem; font-weight: bold; }
-.stat-item .final-score { color: #007BFF; }
-.subject-block { margin-bottom: 30px; }
-.subject-block h3 { font-size: 1.5rem; color: #333; border-bottom: 2px solid #007BFF; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-.subject-score { font-size: 1.1rem; color: #28a745; font-weight: bold; }
-.result-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-.result-table th, .result-table td { border: 1px solid #ddd; padding: 12px; text-align: center; }
-.result-table th { background-color: #f2f2f2; }
+.result-card h2 {
+    text-align: center;
+    color: #007BFF;
+    margin-bottom: 20px;
+}
+
+.exam-details {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #555;
+    font-size: 1.1rem;
+}
+
+.summary-stats {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    padding: 20px;
+    margin: 20px 0;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.stat-item {
+    padding: 10px;
+}
+
+.stat-item h4 {
+    margin: 0 0 5px 0;
+    font-size: 1rem;
+    color: #6c757d;
+}
+
+.stat-item p {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.stat-item .final-score {
+    color: #007BFF;
+}
+
+.subject-block {
+    margin-bottom: 30px;
+}
+
+.subject-block h3 {
+    font-size: 1.5rem;
+    color: #333;
+    border-bottom: 2px solid #007BFF;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.subject-score {
+    font-size: 1.1rem;
+    color: #28a745;
+    font-weight: bold;
+}
+
+.result-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.result-table th,
+.result-table td {
+    border: 1px solid #ddd;
+    padding: 12px;
+    text-align: center;
+}
+
+.result-table th {
+    background-color: #f2f2f2;
+}
 
 /* Cavabların rənglənməsi (İLKİN VERSİYA) */
-.correct-answer { background-color: #d4edda; /* Yaşıl */ color: #155724; }
-/* .correct-answer { background-color: #e7f3ff; */ /* Mavi variant */ /* color: #0056b3; } */
-.incorrect-answer { background-color: #f8d7da; /* Qırmızı */ color: #721c24; }
-.unanswered-row { background-color: #ffffff; /* Ağ */ }
-.pending-answer { background-color: #fff3cd; /* Sarımtıl */ color: #664d03; }
-.pending-answer td { font-style: italic; }
+.correct-answer {
+    background-color: #d4edda;
+    /* Yaşıl */
+    color: #155724;
+}
 
-.certificate-section { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
-#download-cert-btn { padding: 12px 25px; font-size: 1rem; font-weight: bold; color: #fff; background-color: #28a745; border: none; border-radius: 8px; cursor: pointer; transition: background-color 0.3s; }
-#download-cert-btn:hover { background-color: #218838; }
+/* .correct-answer { background-color: #e7f3ff; */
+/* Mavi variant */
+/* color: #0056b3; } */
+.incorrect-answer {
+    background-color: #f8d7da;
+    /* Qırmızı */
+    color: #721c24;
+}
+
+.unanswered-row {
+    background-color: #ffffff;
+    /* Ağ */
+}
+
+.pending-answer {
+    background-color: #fff3cd;
+    /* Sarımtıl */
+    color: #664d03;
+}
+
+.pending-answer td {
+    font-style: italic;
+}
+
+.certificate-section {
+    text-align: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+#download-cert-btn {
+    padding: 12px 25px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff;
+    background-color: #28a745;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#download-cert-btn:hover {
+    background-color: #218838;
+}
 
 .certificate-template {
     position: absolute;
@@ -98,19 +220,53 @@ body::before {
     background-color: #f8f9fa;
     text-align: center;
 }
-.certificate-template h1 { font-size: 48px; color: #0056b3; margin-bottom: 30px; }
-.certificate-template .cert-intro { font-size: 18px; }
-.certificate-template .cert-name { font-size: 36px; font-weight: bold; margin: 20px 0; color: #000; }
-.certificate-template .cert-body { font-size: 20px; line-height: 1.5; }
-.certificate-template .cert-details { margin-top: 50px; font-size: 18px; }
-.certificate-template .cert-footer { position: absolute; bottom: 40mm; left: 0; right: 0; font-size: 14px; color: #777; }
+
+.certificate-template h1 {
+    font-size: 48px;
+    color: #0056b3;
+    margin-bottom: 30px;
+}
+
+.certificate-template .cert-intro {
+    font-size: 18px;
+}
+
+.certificate-template .cert-name {
+    font-size: 36px;
+    font-weight: bold;
+    margin: 20px 0;
+    color: #000;
+}
+
+.certificate-template .cert-body {
+    font-size: 20px;
+    line-height: 1.5;
+}
+
+.certificate-template .cert-details {
+    margin-top: 50px;
+    font-size: 18px;
+}
+
+.certificate-template .cert-footer {
+    width: 90%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* DƏYİŞİKLİK: İmza və tarixi bir-birinə görə mərkəzləyir */
+    position: absolute;
+    bottom: 11%;
+    left: 50%;
+    transform: translateX(-50%);
+}
 
 
 /* result.css faylının sonuna əlavə edin */
 
 /* Köhnə sadə dizaynı ləğv edirik */
 .exam-details {
-    text-align: left; /* Mərkəzləməni ləğv edirik */
+    text-align: left;
+    /* Mərkəzləməni ləğv edirik */
     margin-bottom: 30px;
     padding: 0;
     color: inherit;
@@ -120,8 +276,10 @@ body::before {
 /* YENİ VƏ SİMMETRİK DİZAYN */
 .exam-details-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 2x2 simmetrik düzülüş */
-    gap: 15px; /* Elementlər arasında boşluq */
+    grid-template-columns: repeat(2, 1fr);
+    /* 2x2 simmetrik düzülüş */
+    gap: 15px;
+    /* Elementlər arasında boşluq */
     margin-bottom: 30px;
 }
 
@@ -138,7 +296,7 @@ body::before {
 
 .detail-item:hover {
     transform: translateY(-3px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
 .detail-item i {
@@ -150,7 +308,8 @@ body::before {
     width: 25px;
     height: 25px;
     text-align: center;
-    line-height: 25px; /* İkonu vertikal mərkəzləyir */
+    line-height: 25px;
+    /* İkonu vertikal mərkəzləyir */
 }
 
 .detail-item div {
@@ -173,7 +332,8 @@ body::before {
 /* Planşet və mobil cihazlar üçün uyğunlaşma */
 @media (max-width: 768px) {
     .exam-details-grid {
-        grid-template-columns: 1fr; /* Bütün elementlər alt-alta düzülür */
+        grid-template-columns: 1fr;
+        /* Bütün elementlər alt-alta düzülür */
     }
 }
 
@@ -183,12 +343,20 @@ body::before {
     width: 210mm;
     height: 297mm;
     position: relative;
-    background-image: url('sertifikat_bg.jpeg'); /* Arxa fon şəkli */
-    background-size: 100% 100%; /* Şəkli tam ölçüyə uyğunlaşdırır */
+    background-image: url('sertifikat_bg.jpeg');
+    background-size: 100% 100%;
     background-repeat: no-repeat;
     font-family: 'Segoe UI', 'Inter', sans-serif;
-    color: #0d3d7d; /* Mətn rəngi */
+    color: #0d3d7d;
+    display: flex;
+    /* Elementləri daha rahat idarə etmək üçün */
+    flex-direction: column;
+    justify-content: center;
+    /* Ümumi şaquli mərkəzləmə */
+    align-items: center;
+    /* Ümumi üfüqi mərkəzləmə */
 }
+
 
 /* Mətnləri şəklin üzərində yerləşdirmək üçün ümumi stil */
 .cert-text-overlay {
@@ -199,24 +367,95 @@ body::before {
 
 /* Şagirdin adı */
 .student-name {
-    top: 35%; /* Yuxarıdan 35% məsafədə */
+    top: 35%;
     left: 50%;
     transform: translateX(-50%);
     font-size: 40px;
 }
 
-/* Bal */
+/* Bal (Medalın tam ortası üçün - YENİLƏNMİŞ) */
 .student-score {
-    top: 66%; /* Yuxarıdan 59% məsafədə */
+    top: 63%;
+    /* DƏYİŞİKLİK: Mərkəzə daha da yaxınlaşdırmaq üçün bir az artırıldı */
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
+    color: #8c6400;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1;
+}
+
+.student-score span:first-child {
     font-size: 60px;
-    color: #8c6400; /* Qızılı rəngə uyğun */
+    /* Rəqəmin ölçüsü */
+    font-weight: bold;
+}
+
+/* "bal" sözü üçün yeni stil */
+.score-label {
+    font-size: 24px;
+    /* "bal" sözünün ölçüsü */
+    font-weight: normal;
+    margin-top: 5px;
+    /* Yuxarıdakı rəqəmdən bir az aralı olsun */
 }
 
 /* Tarix */
 .submission-date {
-    bottom: 11.5%; /* Aşağıdan 11.5% məsafədə */
-    right: 15%; /* Sağdan 15% məsafədə */
+    bottom: 11.5%;
+    right: 15%;
     font-size: 18px;
+    transform: none;
+    text-align: right;
+}
+
+/* Sertifikat Dizaynı Üçün Yekun Stillər */
+.cert-bg-image-template {
+    width: 210mm;
+    height: 297mm;
+    position: relative;
+    background-image: url('sertifikat_bg.jpeg');
+    /* Arxa fon şəkli */
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    font-family: 'Segoe UI', 'Inter', sans-serif;
+    color: #0d3d7d;
+}
+
+.cert-text-overlay {
+    position: absolute;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* Şagirdin adı */
+.student-name {
+    top: 35%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 40px;
+}
+
+/* Bal (Medalın tam ortası üçün) */
+.student-score {
+    top: 67%;
+    left: 52%;
+    transform: translateX(-50%);
+    font-size: 60px;
+    color: #8c6400;
+}
+
+/* Tarix (İmzanın tam sağı) */
+.submission-date {
+    bottom: 3%;
+    right: 16%;
+    font-size: 18px;
+    width: auto;
+    /* Avtomatik en */
+    transform: none;
+    /* Mərkəzləməni ləğv edirik */
+    text-align: right;
+    /* Sağa söykənir */
 }

@@ -30,35 +30,39 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentOrganizerData = {};
 
     // Fərqli məlumatları səhifədə göstərən köməkçi funksiyalar
-    function renderProfileData(data) {
-        currentOrganizerData = data; // Məlumatları redaktə üçün yadda saxlayırıq
-        welcomeMessage.textContent = `Xoş gəlmisiniz, ${data.name}!`;
-        balanceValue.textContent = `${(data.balance || 0).toFixed(2)} AZN`;
-        displayName.textContent = data.name;
-        displayEmail.textContent = data.email;
-        displayContact.textContent = data.contact;
-        displayCard.textContent = data.bank_account;
+    // organizer-profile.js -> Köhnə renderProfileData funksiyasını bununla əvəz edin
+
+function renderProfileData(data) {
+    currentOrganizerData = data;
+    if(welcomeMessage) welcomeMessage.textContent = `Xoş gəlmisiniz, ${data.name}!`;
+    if(balanceValue) balanceValue.textContent = `${(data.balance || 0).toFixed(2)} AZN`;
+    if(displayName) displayName.textContent = data.name;
+    if(displayEmail) displayEmail.textContent = data.email;
+    if(displayContact) displayContact.textContent = data.contact;
+    if(displayCard) displayCard.textContent = data.bank_account;
+    
+    const registrationPageUrl = new URL('register.html', window.location.href);
+    // Yoxlayırıq ki, element mövcuddurmu
+    if(inviteLinkInput) {
+        inviteLinkInput.value = `${registrationPageUrl.origin}/register.html?ref=${data.invite_code}`;
+    }
+
+    // Əgər admin icazə veribsə, əlaqələndirici bölməsini göstəririk
+    if (data.can_invite_affiliates && affiliateSection) {
+        affiliateSection.style.display = 'block';
         
-        const registrationPageUrl = new URL('register.html', window.location.href);
-        inviteLinkInput.value = `${registrationPageUrl.origin}/register.html?invite_code=${data.invite_code}`;
+        const affiliateRegUrl = new URL('affiliate-register.html', window.location.href);
+        // Yoxlayırıq ki, element mövcuddurmu
+        if(affiliateInviteLinkInput) {
+            affiliateInviteLinkInput.value = `${affiliateRegUrl.origin}/affiliate-register.html?ref=${data.affiliate_invite_code}`;
+        }
 
-        // YENİ: Əgər admin icazə veribsə, əlaqələndirici bölməsini göstəririk
-        if (data.can_invite_affiliates && affiliateSection) {
-            affiliateSection.style.display = 'block';
-            
-            // YENİ: Əlaqələndirici üçün qeydiyyat linkini yaradırıq (yeni bir səhifə olmalıdır)
-            const affiliateRegUrl = new URL('affiliate-register.html', window.location.href);
-            affiliateInviteLinkInput.value = `${affiliateRegUrl.origin}/affiliate-register.html?invite_code=${data.affiliate_invite_code}`;
-
+        if (affiliateListBody) {
             affiliateListBody.innerHTML = '';
             if (data.affiliates && data.affiliates.length > 0) {
                 data.affiliates.forEach(aff => {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>${aff.name}</td>
-                        <td>${aff.email}</td>
-                        <td><span class="status-active">Aktiv</span></td>
-                    `;
+                    tr.innerHTML = `<td>${aff.name}</td><td>${aff.email}</td><td><span class="status-active">Aktiv</span></td>`;
                     affiliateListBody.appendChild(tr);
                 });
             } else {
@@ -66,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+}
 
     function renderStudentData(students) {
         if (!studentListBody) return;
@@ -217,4 +222,122 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Səhifə yüklənəndə bütün məlumatları yüklə
     loadInitialData();
+
+
+
+
+    // organizer-profile.js -> Faylın sonuna, DOMContentLoaded içinə əlavə edin
+
+const myAffiliatesSection = document.getElementById('my-affiliates-section');
+const myAffiliatesListBody = document.getElementById('my-affiliates-list-body');
+
+// organizer-profile.js -> Köhnə loadMyAffiliates funksiyasını bununla əvəz edin
+function loadMyAffiliates() {
+    if (!myAffiliatesSection) return;
+
+    fetch('/api/organizer/my-affiliates-details', { credentials: 'include' })
+        .then(res => res.json())
+        .then(affiliates => {
+            if (affiliates && affiliates.length > 0) {
+                myAffiliatesSection.style.display = 'block';
+                myAffiliatesListBody.innerHTML = '';
+                affiliates.forEach(aff => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${aff.name}<br><small>${aff.email}</small></td>
+                        <td>${aff.contact || 'N/A'}<br><small>${aff.bank_account || 'N/A'}</small></td>
+                        <td>${(aff.balance || 0).toFixed(2)}</td>
+                        <td>${(aff.commission_rate || 0).toFixed(2)}</td>
+                        <td><strong>${aff.registered_student_count}</strong> (${aff.participated_student_count})</td>
+                        <td class="actions">
+                            <button class="edit-btn" data-aff-id="${aff.id}" data-current-rate="${aff.commission_rate}" data-aff-name="${aff.name}">Dəyiş</button>
+                            <button class="reset-balance-btn" data-aff-id="${aff.id}" data-aff-name="${aff.name}">Sıfırla</button>
+                        </td>
+                    `;
+                    myAffiliatesListBody.appendChild(tr);
+                });
+            }
+        });
+}
+
+// organizer-profile.js -> Köhnə myAffiliatesListBody.addEventListener blokunu bununla əvəz edin
+if (myAffiliatesListBody) {
+    myAffiliatesListBody.addEventListener('click', e => {
+        const button = e.target.closest('button');
+        if (!button) return;
+
+        const affId = button.dataset.affId;
+        const affName = button.dataset.affName;
+
+        if (button.classList.contains('edit-btn')) {
+            const currentRate = button.dataset.currentRate;
+            const newRate = prompt(`'${affName}' üçün yeni komissiya məbləğini daxil edin (AZN):`, currentRate);
+
+            if (newRate !== null && !isNaN(parseFloat(newRate))) {
+                fetch(`/api/organizer/affiliate/${affId}/commission`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ commission_rate: newRate })
+                })
+                .then(res => res.json())
+                .then(result => {
+                    alert(result.message);
+                    loadMyAffiliates();
+                });
+            }
+        }
+
+        if (button.classList.contains('reset-balance-btn')) {
+            if (confirm(`'${affName}' adlı əlaqələndiricinin balansını sıfırlamaq istədiyinizə əminsiniz?`)) {
+                fetch(`/api/organizer/affiliate/${affId}/reset-balance`, {
+                    method: 'POST',
+                    credentials: 'include'
+                })
+                .then(res => res.json())
+                .then(result => {
+                    alert(result.message);
+                    loadMyAffiliates();
+                });
+            }
+        }
+    });
+}
+
+// `loadInitialData()` funksiyasının çağırıldığı yerin yanına bunu da əlavə edin:
+setTimeout(loadMyAffiliates, 500); // Məlumatların yüklənməsini gözləmək üçün kiçik fasilə
+
+// Komissiya dəyişmə məntiqi
+if (myAffiliatesListBody) {
+    myAffiliatesListBody.addEventListener('click', e => {
+        if (e.target.classList.contains('edit-btn')) {
+            const affId = e.target.dataset.affId;
+            const currentRate = e.target.dataset.currentRate;
+            const affName = e.target.dataset.affName;
+
+            const newRate = prompt(`'${affName}' üçün yeni komissiya məbləğini daxil edin (AZN):`, currentRate);
+
+            if (newRate !== null && !isNaN(parseFloat(newRate))) {
+                fetch(`/api/organizer/affiliate/${affId}/commission`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ commission_rate: newRate })
+                })
+                .then(res => res.json())
+                .then(result => {
+                    alert(result.message);
+                    loadMyAffiliates(); // Cədvəli yenilə
+                });
+            }
+        }
+    });
+}
+
+
+
+
+
 });
+
+

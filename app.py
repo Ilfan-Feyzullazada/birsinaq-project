@@ -60,7 +60,8 @@ class User(db.Model, UserMixin):
     password = db.Column(db.String(100), nullable=False)
     organizer_id = db.Column(db.Integer, db.ForeignKey('organizer.id'), nullable=True)
     affiliate_id = db.Column(db.Integer, db.ForeignKey('affiliate.id'), nullable=True)
-     
+    registration_commission = db.Column(db.Float, nullable=True) # YENİ SÜTUN
+ 
 
     # DÜZƏLİŞ: Buradakı əlaqə yeniləndi
     submissions = db.relationship('Submission', back_populates='user', cascade="all, delete-orphan")
@@ -88,17 +89,21 @@ class Organizer(db.Model, UserMixin):
     
     
     # Bu yeni klassı app.py-a əlavə edin
+# app.py -> Köhnə Affiliate class-ını bununla əvəz edin
+# app.py -> Köhnə Affiliate class-ını bununla əvəz edin
 class Affiliate(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
+    contact = db.Column(db.String(100), nullable=True)
+    bank_account = db.Column(db.String(16), nullable=True) # <<< YENİ SÜTUN
     password = db.Column(db.String(100), nullable=False)
     student_invite_code = db.Column(db.String(10), unique=True, nullable=False)
     balance = db.Column(db.Float, nullable=False, default=0.0)
+    commission_rate = db.Column(db.Float, nullable=False, default=2.0)
     parent_organizer_id = db.Column(db.Integer, db.ForeignKey('organizer.id'), nullable=False)
-
     parent_organizer = db.relationship('Organizer', backref='affiliates')
-
+    registered_students = db.relationship('User', backref='affiliate', lazy=True)
     def get_id(self): return f"affiliate-{self.id}"
     
 
@@ -234,13 +239,21 @@ class Answer(db.Model):
     status = db.Column(db.String(50), nullable=False, default='auto_graded')
     graded_by_teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), nullable=True)
     teacher_feedback = db.Column(db.Text, nullable=True)
-    
-    # YENİ ƏLAVƏ EDİLƏN SAHƏ
     graded_at = db.Column(db.DateTime, nullable=True)
 
+    # Əlaqələr (Relationships)
     question = db.relationship('Question')
     graded_by = db.relationship('Teacher')
     submission = db.relationship('Submission', back_populates='individual_answers')
+    
+    # Şəkillər üçün yeni əlavə edilən əlaqə
+    images = db.relationship('AnswerImage', backref='answer', lazy=True, cascade="all, delete-orphan")
+class AnswerImage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    answer_id = db.Column(db.Integer, db.ForeignKey('answer.id'), nullable=False)
+    image_path = db.Column(db.String(200), nullable=False)
+    
+    
     
 # --- FLASK CLI COMMANDS ---
 @app.cli.command("create-admin")
@@ -597,99 +610,124 @@ def get_exam_for_test(exam_id):
 # app.py faylında bu funksiyanı tapıb AŞAĞIDAKI KODLA TAM ƏVƏZ EDİN
 
 # app.py -> submit_exam funksiyasını bununla tam əvəz edin
+# app.py -> Köhnə submit_exam funksiyasını bununla əvəz edin
+
+# app.py -> Köhnə /api/exam/submit funksiyasını bununla əvəz edin
+# app.py -> Köhnə submit_exam funksiyasını bununla tam əvəz edin
+
 @app.route('/api/exam/submit', methods=['POST'])
 def submit_exam():
     try:
-        data = request.get_json()
-        exam_id = data.get('examId')
-        user_answers_dict = data.get('answers') or {}
-        time_spent = data.get('timeSpent') or {}
+        form_data = request.form
+        files = request.files
+        
+        exam_id = form_data.get('examId')
+        # Cavabları JSON-dan lüğətə (dictionary) çeviririk
+        user_answers_dict = json.loads(form_data.get('answers', '{}'))
+        time_spent = json.loads(form_data.get('timeSpent', '{}'))
 
         exam = Exam.query.get(exam_id)
         if not exam:
             return jsonify({'error': 'İmtahan tapılmadı'}), 404
 
+        # 1. Əsas "Submission" obyektini yaradırıq
         new_submission = Submission(
-            exam_id=exam_id, score=0, answers=user_answers_dict,
-            time_spent_per_question=time_spent, guest_name=data.get('guestName'),
-            guest_email=data.get('guestEmail')
+            exam_id=exam_id,
+            score=0, # İlkin bal 0 olur, sonra hesablanacaq
+            answers=user_answers_dict, # Ümumi cavabları JSON olaraq saxlayırıq
+            time_spent_per_question=time_spent
         )
         
-        is_guest = True
+        user_who_submitted = None
         if current_user.is_authenticated and isinstance(current_user, User):
             new_submission.user_id = current_user.id
-            new_submission.guest_name = None
-            new_submission.guest_email = None
-            is_guest = False
-            if current_user.organizer:
-                current_user.organizer.balance += current_user.organizer.commission_amount
-        elif not new_submission.guest_name or not new_submission.guest_email:
-            return jsonify({'error': 'Qonaq kimi iştirak üçün ad və e-poçt daxil edilməlidir.'}), 400
+            user_who_submitted = current_user
+        else:
+            new_submission.guest_name = form_data.get('guestName')
+            new_submission.guest_email = form_data.get('guestEmail')
 
         db.session.add(new_submission)
-        db.session.flush()
+        db.session.flush() # ID-ni əldə etmək üçün
 
-        total_correct_score = 0
-        for question in exam.questions:
-            user_answer = user_answers_dict.get(str(question.id))
-            answer_to_save = json.dumps(user_answer) if isinstance(user_answer, (dict, list)) else user_answer
-            new_answer = Answer(submission_id=new_submission.id, question_id=question.id, answer_text=answer_to_save)
+        # 2. HƏR BİR CAVABI AYRILIQDA BAZAYA YAZMAQ ÜÇÜN YENİ BLOK
+        all_exam_questions = {q.id: q for q in exam.questions}
+        created_answers = {}
 
-            question_score = 0
-            
-            if question.question_type == 'fast_tree':
-                correct_answer = question.correct_answer
-                if isinstance(user_answer, dict) and isinstance(correct_answer, dict):
-                    correct_sub_answers = 0
-                    total_sub_questions = len(correct_answer.keys())
-                    for key in correct_answer:
-                        if str(user_answer.get(key, ' ')).lower() == str(correct_answer[key]).lower():
-                            correct_sub_answers += 1
-                    if total_sub_questions > 0 and correct_sub_answers == total_sub_questions:
-                        question_score = 1
+        for q_id_str, student_answer in user_answers_dict.items():
+            q_id = int(q_id_str)
+            question = all_exam_questions.get(q_id)
+            if not question:
+                continue
 
-            elif question.question_type == 'matching':
-                correct_answer = question.correct_answer
-                if isinstance(user_answer, dict) and isinstance(correct_answer, dict):
-                    if sorted(user_answer.keys()) == sorted(correct_answer.keys()):
-                        if all(str(user_answer.get(key, ' ')).lower() == str(correct_answer[key]).lower() for key in correct_answer):
-                            question_score = 1
-            
-            elif question.question_type in ['closed', 'multiple_choice', 'open']:
-                correct_answer_str = json.dumps(sorted(question.correct_answer), sort_keys=True) if isinstance(question.correct_answer, (list, dict)) else str(question.correct_answer)
-                user_answer_str = json.dumps(sorted(user_answer), sort_keys=True) if isinstance(user_answer, (list, dict)) else str(user_answer)
-                if correct_answer_str.lower() == user_answer_str.lower():
-                    question_score = 1
-            
-            new_answer.score = question_score
-            total_correct_score += question_score
+            # JSON-a çevirməyə çalışırıq, alınmasa olduğu kimi götürürük
+            try:
+                student_answer_text = json.dumps(student_answer)
+            except TypeError:
+                student_answer_text = str(student_answer)
 
-            if question.question_type == 'situational_open':
+            new_answer = Answer(
+                submission_id=new_submission.id,
+                question_id=q_id,
+                answer_text=student_answer_text,
+            )
+
+            # AVTOMATİK QİYMƏTLƏNDİRMƏ
+            if question.question_type in ['situational_open', 'open_written']:
                 new_answer.status = 'pending_review'
+                new_answer.score = 0
             else:
+                # Düzgün cavabı müqayisə üçün hazırlayırıq
+                correct_answer = question.correct_answer
+                # Burada sadə müqayisə aparırıq, daha mürəkkəb yoxlama da əlavə oluna bilər
+                if str(student_answer).lower() == str(correct_answer).lower():
+                    new_answer.score = 1.0
+                else:
+                    new_answer.score = 0.0
                 new_answer.status = 'graded'
             
             db.session.add(new_answer)
+            created_answers[q_id] = new_answer
+        
+        db.session.flush() # Cavabların ID-lərini əldə etmək üçün
 
-        calculated_score = 0
-        if exam.exam_type.name == "İbtidai Sinif":
-            correctly_answered_question_ids = []
-            for answer in new_submission.individual_answers:
-                if answer.score is not None and answer.score > 0:
-                    correctly_answered_question_ids.append(answer.question_id)
-            if correctly_answered_question_ids:
-                points_sum = db.session.query(func.sum(Question.points)).filter(Question.id.in_(correctly_answered_question_ids)).scalar()
-                calculated_score = points_sum or 0
-        else:
-            calculated_score = total_correct_score
+        # 3. Şəkil yüklənən cavabları emal edirik
+        for key, file in files.items():
+            if key.startswith('images_'):
+                q_id = int(key.split('_')[1])
+                
+                # Əgər bu sual üçün artıq cavab yaranıbsa, onu istifadə edirik
+                answer_obj = created_answers.get(q_id)
+                if not answer_obj:
+                    answer_obj = Answer(submission_id=new_submission.id, question_id=q_id, status='pending_review', score=0)
+                    db.session.add(answer_obj)
+                    db.session.flush()
+                
+                filename = secure_filename(file.filename)
+                unique_filename = str(uuid.uuid4()) + "_" + filename
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
+                
+                new_image = AnswerImage(answer_id=answer_obj.id, image_path=unique_filename)
+                db.session.add(new_image)
 
-        new_submission.score = calculated_score
+        # 4. Yekun balı hesablayıb Submission-u yeniləyirik
+        final_stats = calculate_detailed_score(new_submission)
+        new_submission.score = final_stats.get('final_score', 0)
 
-        if is_guest:
-            session['last_submission_id'] = new_submission.id
+        # 5. Avtomatik balans artırma məntiqi
+        if user_who_submitted and user_who_submitted.registration_commission:
+            if user_who_submitted.organizer_id and not user_who_submitted.affiliate_id:
+                organizer = Organizer.query.get(user_who_submitted.organizer_id)
+                if organizer:
+                    organizer.balance += user_who_submitted.registration_commission
+            elif user_who_submitted.affiliate_id:
+                affiliate = Affiliate.query.get(user_who_submitted.affiliate_id)
+                if affiliate:
+                    affiliate.balance += user_who_submitted.registration_commission
 
         db.session.commit()
+        session['last_submission_id'] = new_submission.id
         return jsonify({'message': 'İmtahan uğurla təqdim edildi!', 'submission_id': new_submission.id})
+
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -778,28 +816,63 @@ def teacher_login():
     return jsonify({'message': 'E-poçt və ya şifrə yanlışdır'}), 401
 
 # --- ORGANIZER API ---
+# app.py -> Köhnə organizer_register funksiyasını bununla tam əvəz edin
+
+# app.py -> Köhnə organizer_register funksiyasını bununla tam əvəz edin
+
 @app.route('/api/organizer/register', methods=['POST'])
 def organizer_register():
     data = request.get_json()
-    if Organizer.query.filter_by(email=data['email']).first(): return jsonify({'message': 'Bu e-poçt artıq qeydiyyatdan keçib'}), 409
+    if Organizer.query.filter_by(email=data['email']).first():
+        return jsonify({'message': 'Bu e-poçt artıq qeydiyyatdan keçib'}), 409
+
     hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-    unique_code = str(uuid.uuid4().hex)[:8]
-    while Organizer.query.filter_by(invite_code=unique_code).first(): unique_code = str(uuid.uuid4().hex)[:8]
-    new_organizer = Organizer(name=data['name'], contact=data['contact'], bank_account=data['bank-account'], email=data['email'], password=hashed_password, invite_code=unique_code)
+
+    # Şagird dəvət kodu (unikal olmalıdır)
+    student_invite_code = str(uuid.uuid4().hex)[:8]
+    while Organizer.query.filter_by(invite_code=student_invite_code).first():
+        student_invite_code = str(uuid.uuid4().hex)[:8]
+
+    # Əlaqələndirici dəvət kodu (unikal olmalıdır)
+    affiliate_invite_code = str(uuid.uuid4().hex)[:10]
+    while Organizer.query.filter_by(affiliate_invite_code=affiliate_invite_code).first():
+        affiliate_invite_code = str(uuid.uuid4().hex)[:10]
+
+    new_organizer = Organizer(
+        name=data['name'],
+        contact=data.get('contact'),
+        bank_account=data.get('bank-account'),
+        email=data['email'],
+        password=hashed_password,
+        invite_code=student_invite_code,
+        affiliate_invite_code=affiliate_invite_code # <<< ƏSAS DÜZƏLİŞ BURADADIR
+    )
     db.session.add(new_organizer)
     db.session.commit()
     return jsonify({'message': 'Qeydiyyat uğurlu oldu!'}), 201
 
+# app.py -> Köhnə organizer_login funksiyasını bununla tam əvəz edin
+
 @app.route('/api/organizer/login', methods=['POST'])
 def organizer_login():
     data = request.get_json()
-    organizer = Organizer.query.filter_by(email=data['email']).first()
-    if organizer and bcrypt.check_password_hash(organizer.password, data['password']):
+    email = data.get('email')
+    password = data.get('password')
+
+    # Əvvəlcə Kordinatorlar cədvəlində axtarırıq
+    organizer = Organizer.query.filter_by(email=email).first()
+    if organizer and bcrypt.check_password_hash(organizer.password, password):
         login_user(organizer, remember=True)
         return jsonify({'message': 'Giriş uğurludur!'})
+
+    # Əgər Kordinator tapılmasa, Əlaqələndiricilər cədvəlində axtarırıq
+    affiliate = Affiliate.query.filter_by(email=email).first()
+    if affiliate and bcrypt.check_password_hash(affiliate.password, password):
+        login_user(affiliate, remember=True)
+        # Əlaqələndiricilər də eyni profil səhifəsinə yönlənir
+        return jsonify({'message': 'Giriş uğurludur!'})
+
     return jsonify({'message': 'E-poçt və ya şifrə yanlışdır'}), 401
-
-
 
 @app.route('/api/organizer/update', methods=['POST'])
 @login_required
@@ -820,9 +893,11 @@ def organizer_update():
 # --- SCORING & RESULTS ---
 # app.py faylında bu funksiyanı tapıb tam əvəz edin
 
+# app.py -> Köhnə calculate_detailed_score funksiyasını bununla tam əvəz edin
+
 def calculate_detailed_score(submission):
     exam = submission.exam
-    exam_type = exam.exam_type.name
+    exam_type_name = exam.exam_type.name
     all_answers = submission.individual_answers
 
     subject_stats = defaultdict(lambda: {
@@ -830,19 +905,21 @@ def calculate_detailed_score(submission):
         'correct_closed': 0, 'incorrect_closed': 0, 'written_score_sum': 0
     })
     
-    total_question_count = len(exam.questions)
+    # Hər fənnə aid ümumi sual sayını hesablamaq üçün
+    total_questions_by_subject = defaultdict(int)
+    for q in exam.questions:
+        if q.subject:
+            total_questions_by_subject[q.subject.name] += 1
 
-    for question in exam.questions:
-        if not question.subject:
-            total_question_count -= 1
+    for answer_obj in all_answers:
+        question = answer_obj.question
+        if not question or not question.subject:
             continue
         
         subject_name = question.subject.name
         s_stats = subject_stats[subject_name]
-        
-        answer_obj = next((a for a in all_answers if a.question_id == question.id), None)
 
-        if not answer_obj or not answer_obj.answer_text or answer_obj.answer_text == '[]' or answer_obj.answer_text == '""':
+        if not answer_obj.answer_text or answer_obj.answer_text in ['[]', '""', '{}']:
             s_stats['unanswered'] += 1
             continue
 
@@ -851,8 +928,8 @@ def calculate_detailed_score(submission):
                 s_stats['correct'] += 1
                 if question.question_type == 'closed':
                     s_stats['correct_closed'] += 1
-                elif question.question_type == 'situational_open':
-                    s_stats['written_score_sum'] += answer_obj.score # Müəllimin verdiyi balı toplayırıq
+                # Yazılı suallardan gələn xalı toplayırıq (məsələn, 1/3, 1/2 və ya tam bal)
+                s_stats['written_score_sum'] += answer_obj.score * (question.points or 1)
             else:
                 s_stats['incorrect'] += 1
                 if question.question_type == 'closed':
@@ -860,54 +937,53 @@ def calculate_detailed_score(submission):
     
     final_score = 0
     
-    # İmtahan növünə ("Buraxılış", "Blok") görə fərqli hesablama aparılır
-    if exam_type in ["Buraxılış", "Blok"]:
+    # "Buraxılış" və "Blok" üçün xüsusi mürəkkəb hesablama
+    if exam_type_name in ["Buraxılış", "Blok"]:
         total_exam_score = 0
+        total_question_count = len(exam.questions)
         for subject_name, s_stats in subject_stats.items():
             net_correct_closed = s_stats['correct_closed'] - (s_stats['incorrect_closed'] / 4.0)
             if net_correct_closed < 0: net_correct_closed = 0
             
-            # Açıq tipli (kodlaşdırma) sualların düzgün cavabları
-            other_correct = s_stats['correct'] - s_stats['correct_closed']
-            
-            # Fənn üzrə xam bal = (Qapalı sualların xalis sayı) + (Digər düzlər) + (Müəllimin verdiyi balların cəmi)
-            subject_raw_score = net_correct_closed + other_correct + s_stats['written_score_sum']
+            other_correct_points = 0
+            # Açıq tipli (amma yazılı olmayan) sualların xallarını toplayırıq
+            for ans in all_answers:
+                if ans.question and ans.question.subject.name == subject_name and ans.question.question_type != 'closed' and ans.question.question_type != 'situational_open':
+                    if ans.score and ans.score > 0:
+                        other_correct_points += ans.question.points or 1
+
+            subject_raw_score = net_correct_closed + other_correct_points + s_stats['written_score_sum']
             s_stats['score'] = round(subject_raw_score, 2)
             total_exam_score += subject_raw_score
             
-        # Yekun bal sual sayına görə 300/400 bala uyğunlaşdırılır (scaling)
         max_possible_raw_score = total_question_count
         if max_possible_raw_score > 0:
-            scale_factor = 1
-            if exam_type == "Buraxılış":
-                scale_factor = 300 / max_possible_raw_score
-            elif exam_type == "Blok":
-                scale_factor = 400 / max_possible_raw_score
-            final_score = round(total_exam_score * scale_factor)
+            scale_factor = 300 if exam_type_name == "Buraxılış" else 400
+            final_score = round((total_exam_score / max_possible_raw_score) * scale_factor)
 
-    # calculate_detailed_score funksiyası içində
-
-    # app.py -> calculate_detailed_score funksiyası içində
-    elif exam_type == "İbtidai Sinif":
+    # DİGƏR BÜTÜN İMTAHAN NÖVLƏRİ ÜÇÜN BALLARIN CƏMİ
+    else:
         total_points_earned = 0
-    for answer_obj in all_answers:
-        # Əgər cavab düzgündürsə...
-        if answer_obj.status == 'graded' and answer_obj.score is not None and answer_obj.score > 0:
-            # ...həmin sualın balını tapıb ümumi bala əlavə edirik
-            total_points_earned += answer_obj.question.points or 1
-        final_score = total_points_earned
+        for subject_name, s_stats in subject_stats.items():
+            subject_score = 0
+            # Bu fənnə aid cavabları tapırıq
+            subject_answers = [a for a in all_answers if a.question and a.question.subject.name == subject_name]
+            for ans in subject_answers:
+                if ans.score and ans.score > 0:
+                    # Düzgün cavabın xalını toplayırıq
+                    subject_score += (ans.question.points or 1) * ans.score
+            
+            s_stats['score'] = round(subject_score, 2)
+            total_points_earned += subject_score
+        
+        final_score = round(total_points_earned)
 
-    else: # Digər imtahan növləri üçün köhnə məntiq
-          final_score = sum(s['correct'] for s in subject_stats.values())
-    
-    
     return {
-        'total_questions': total_question_count,
         'correct_count': sum(s['correct'] for s in subject_stats.values()),
         'incorrect_count': sum(s['incorrect'] for s in subject_stats.values()),
         'unanswered_count': sum(s['unanswered'] for s in subject_stats.values()),
         'final_score': final_score,
-        'subjects': subject_stats
+        'subjects': dict(subject_stats)
     }
     
     
@@ -915,51 +991,70 @@ def calculate_detailed_score(submission):
 
 # app.py -> Köhnə get_submission_result funksiyasını bununla TAM ƏVƏZ EDİN
 
+# app.py -> Köhnə get_submission_result funksiyasını bununla tam əvəz edin
+
 @app.route('/api/submission/<int:submission_id>/result')
 def get_submission_result(submission_id):
     submission = Submission.query.get_or_404(submission_id)
     can_view = False
-    
-    if current_user.is_authenticated and isinstance(current_user, User) and submission.user_id == current_user.id:
+
+    if (current_user.is_authenticated and isinstance(current_user, User) and submission.user_id == current_user.id) or \
+       ('last_submission_id' in session and session['last_submission_id'] == submission_id):
         can_view = True
-    elif 'last_submission_id' in session and session['last_submission_id'] == submission_id:
-        can_view = True
-        
+
     if not can_view:
         return jsonify({'message': 'Bu nəticəyə baxmaq üçün icazəniz yoxdur'}), 403
 
-    detailed_stats = calculate_detailed_score(submission)
+    exam = submission.exam
+    # Bütün cavabları bir lüğətə yığırıq ki, asanlıqla tapa bilək
+    submitted_answers_map = {ans.question_id: ans for ans in submission.individual_answers}
+
+    results_by_subject = defaultdict(list)
+
+    # İmtahandakı BÜTÜN sualların üstündən keçirik
+    all_questions = sorted(exam.questions, key=lambda q: q.id)
     
-    valid_answers = [a for a in submission.individual_answers if a.question is not None]
-    sorted_answers = sorted(valid_answers, key=lambda a: a.question.id)
-    
-    grouped_by_subject = {}
-    for answer in sorted_answers:
-        subject_name = answer.question.subject.name
-        if subject_name not in grouped_by_subject: 
-            grouped_by_subject[subject_name] = []
+    for question in all_questions:
+        student_answer_obj = submitted_answers_map.get(question.id)
         
-        grouped_by_subject[subject_name].append({
-            'question_id': answer.question.id,
-            'question_text': answer.question.text,
-            'student_answer': answer.answer_text,
-            'correct_answer': answer.question.correct_answer,
-            'status': answer.status,
-            'video_start_time': answer.question.video_start_time,
-            'topic': answer.question.topic
+        student_answer_text = None
+        status = 'unanswered' # Standart olaraq cavabsız qəbul edirik
+        
+        if student_answer_obj and student_answer_obj.answer_text:
+            try:
+                # JSON formatında olan cavabları çeviririk (uyğunluq, fast tree)
+                student_answer_text = json.loads(student_answer_obj.answer_text)
+            except (json.JSONDecodeError, TypeError):
+                # Əgər JSON deyilsə, olduğu kimi götürürük
+                student_answer_text = student_answer_obj.answer_text
+            status = student_answer_obj.status
+
+        # Nəticə obyektini yaradırıq
+        question_data = {
+            'question_id': question.id,
+            'question_text': question.text,
+            'student_answer': student_answer_text,
+            'correct_answer': question.correct_answer,
+            'status': status,
+            'video_start_time': question.video_start_time,
+            'topic': question.topic,
+            'difficulty': question.difficulty
+        }
+        
+        # Fənnə görə qruplaşdırırıq
+        subject_name = question.subject.name if question.subject else "Adsız Fənn"
+        results_by_subject[subject_name].append(question_data)
+
+    # Nəticələri sıralı şəkildə formatlayırıq
+    final_ordered_results = []
+    for subject_name, questions in results_by_subject.items():
+        final_ordered_results.append({
+            "subject_name": subject_name,
+            "questions": questions
         })
 
-    exam_questions_sorted = sorted(submission.exam.questions, key=lambda q: q.id)
-    ordered_subject_names = []
-    for q in exam_questions_sorted:
-        if q.subject and q.subject.name not in ordered_subject_names: 
-            ordered_subject_names.append(q.subject.name)
-            
-    final_ordered_results = []
-    for subject_name in ordered_subject_names:
-        if subject_name in grouped_by_subject:
-            final_ordered_results.append({ "subject_name": subject_name, "questions": grouped_by_subject[subject_name] })
-            
+    # Dəyişməz qalan hissə
+    detailed_stats = calculate_detailed_score(submission)
     return jsonify({
         'exam_title': submission.exam.title,
         'exam_type': submission.exam.exam_type.name,
@@ -976,41 +1071,76 @@ def get_submission_result(submission_id):
 
 # app.py -> Köhnə get_organizers funksiyasını bununla tam əvəz edin
 
-@app.route('/api/admin/organizers', methods=['GET'])
+# app.py -> Faylın sonuna bu yeni route-ları əlavə edin
+
+# İSTƏK 2: Admin Panelində Təşkilatçı və Əlaqələndirici məlumatları
+# app.py -> Köhnə get_organizers_with_stats funksiyasını bununla əvəz edin
+
+# app.py -> Köhnə get_organizers_with_stats funksiyasını bununla tam əvəz edin
+
+@app.route('/api/admin/organizers_with_stats')
 @login_required
-def get_organizers():
-    """ Bütün təşkilatçıların siyahısını admin üçün qaytarır """
-    if not isinstance(current_user, Admin):
-        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
-
-    try:
-        organizers = Organizer.query.order_by(Organizer.id.desc()).all()
-        
-        organizer_list = []
-        for org in organizers:
-            organizer_list.append({
-                'id': org.id,
-                'name': org.name,
-                'email': org.email,
-                'contact': org.contact,
-                'bank_account': org.bank_account,
-                'balance': org.balance,
-                'commission_amount': org.commission_amount,
-                # Əlaqələndirici sistemi üçün yeni əlavə edilən məlumatlar
-                'can_invite_affiliates': org.can_invite_affiliates,
-                'affiliate_invite_limit': org.affiliate_invite_limit,
-                'affiliate_invite_code': org.affiliate_invite_code,
-                'affiliate_commission': org.affiliate_commission
-            })
-            
-        return jsonify(organizer_list)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Təşkilatçıları çəkərkən xəta baş verdi: {str(e)}"}), 500
+def get_organizers_with_stats():
+    if not isinstance(current_user, Admin): return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    
+    organizers_query = db.session.query(
+        Organizer,
+        func.count(func.distinct(User.id)).label('registered_count'),
+        func.count(func.distinct(Submission.user_id)).label('participated_count')
+    ).outerjoin(User, Organizer.id == User.organizer_id)\
+     .outerjoin(Submission, User.id == Submission.user_id)\
+     .group_by(Organizer.id).all()
+    
+    result = [{
+        'id': org.id, 
+        'name': org.name, 
+        'email': org.email, 
+        'contact': org.contact,                       # BU SƏTİRLƏR ƏSASDIR
+        'bank_account': org.bank_account,             # BU SƏTİRLƏR ƏSASDIR
+        'commission_amount': org.commission_amount, # BU SƏTİRLƏR ƏSASDIR
+        'balance': org.balance,
+        'can_invite_affiliates': org.can_invite_affiliates,
+        'affiliate_invite_limit': org.affiliate_invite_limit,
+        'affiliate_commission': org.affiliate_commission,
+        'registered_student_count': registered_count,
+        'participated_student_count': participated_count
+    } for org, registered_count, participated_count in organizers_query]
+    
+    return jsonify(result)
 
 
 
+# İSTƏK 1: Admin və Kordinator tərəfindən komissiya tənzimlənməsi
+@app.route('/api/admin/affiliate/<int:affiliate_id>/commission', methods=['POST'])
+@login_required
+def admin_set_affiliate_commission(affiliate_id):
+    if not isinstance(current_user, Admin): return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    
+    affiliate = Affiliate.query.get_or_404(affiliate_id)
+    data = request.get_json()
+    new_rate = data.get('commission_rate')
+
+    if new_rate is None: return jsonify({'message': 'Komissiya dəyəri göndərilməyib'}), 400
+    
+    affiliate.commission_rate = float(new_rate)
+    db.session.commit()
+    return jsonify({'message': f"'{affiliate.name}' üçün yeni komissiya {new_rate} AZN olaraq təyin edildi."})
+
+
+@app.route('/api/organizer/affiliate/<int:affiliate_id>/commission', methods=['POST'])
+@login_required
+def organizer_set_affiliate_commission(affiliate_id):
+    if not isinstance(current_user, Organizer): return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    
+    affiliate = Affiliate.query.filter_by(id=affiliate_id, parent_organizer_id=current_user.id).first_or_404()
+    data = request.get_json()
+    new_rate = data.get('commission_rate')
+
+    if new_rate is None: return jsonify({'message': 'Komissiya dəyəri göndərilməyib'}), 400
+    
+    affiliate.commission_rate = float(new_rate)
+    db.session.commit()
+    return jsonify({'message': f"'{affiliate.name}' üçün yeni komissiya {new_rate} AZN olaraq təyin edildi."})
 
 
 
@@ -1234,7 +1364,9 @@ def get_pending_reviews():
             existing_block['sub_answers'].append({
                 "answer_id": answer.id,
                 "question_text": answer.question.text,
-                "student_answer": answer.answer_text
+                "student_answer": answer.answer_text,
+                "images": [img.image_path for img in answer.images] # <-- BU SƏTRİ ƏLAVƏ EDİN
+
             })
         else:
             # Əgər normal açıq sualdırsa, onu ayrıca əlavə edirik
@@ -1445,52 +1577,16 @@ def serve_static_files(path='index.html'):
 # app.py -> Köhnə get_leaderboard funksiyasını bununla tam əvəz edin
 from sqlalchemy import extract
 
-@app.route('/api/leaderboard')
-def get_leaderboard():
-    try:
-        period = request.args.get('period', 'month')
-        now = datetime.utcnow()
-
-        current_year = str(now.year)
-        current_month = f"{now.month:02d}"
-
-        query = db.session.query(
-            User.id, # YENİ: User ID-ni də sorğuya əlavə edirik
-            User.name,
-            func.sum(Submission.score).label('total_score')
-        ).join(Submission, User.id == Submission.user_id)
-
-        if period == 'month':
-            query = query.filter(
-                func.strftime('%Y', Submission.submitted_at) == current_year,
-                func.strftime('%m', Submission.submitted_at) == current_month
-            )
-        elif period == 'year':
-            query = query.filter(
-                func.strftime('%Y', Submission.submitted_at) == current_year
-            )
-
-        leaderboard_data = query.group_by(User.id).order_by(func.sum(Submission.score).desc()).limit(10).all()
-
-        leaderboard_list = [
-            {"rank": i + 1, "user_id": user_id, "name": name, "total_score": round(total_score if total_score else 0)}
-            for i, (user_id, name, total_score) in enumerate(leaderboard_data)
-        ]
-
-        return jsonify(leaderboard_list)
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Daxili server xətası: {str(e)}"}), 500
 
 # --- ƏLAQƏLƏNDİRİCİ (AFFILIATE) SİSTEMİ ÜÇÜN YENİ FUNKSİYALAR ---
+
+# app.py -> Köhnə affiliate_register funksiyasını bununla əvəz edin
 
 @app.route('/api/affiliate/register', methods=['POST'])
 def affiliate_register():
     data = request.get_json()
     invite_code = data.get('invite_code')
     
-    # Dəvət kodunun aid olduğu təşkilatçını tapırıq
     parent_organizer = Organizer.query.filter_by(affiliate_invite_code=invite_code).first()
     
     if not parent_organizer:
@@ -1499,7 +1595,6 @@ def affiliate_register():
     if not parent_organizer.can_invite_affiliates:
         return jsonify({'message': 'Bu təşkilatçının əlaqələndirici dəvət etmək icazəsi yoxdur'}), 403
 
-    # Təşkilatçının limitini yoxlayırıq
     current_affiliate_count = len(parent_organizer.affiliates)
     if current_affiliate_count >= parent_organizer.affiliate_invite_limit:
         return jsonify({'message': 'Təşkilatçı dəvət limitinə çatıb'}), 403
@@ -1509,7 +1604,6 @@ def affiliate_register():
 
     hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
     
-    # Əlaqələndirici üçün unikal şagird dəvət kodu yaradırıq
     student_invite_code = str(uuid.uuid4().hex)[:8]
     while Organizer.query.filter_by(invite_code=student_invite_code).first() or Affiliate.query.filter_by(student_invite_code=student_invite_code).first():
         student_invite_code = str(uuid.uuid4().hex)[:8]
@@ -1517,23 +1611,24 @@ def affiliate_register():
     new_affiliate = Affiliate(
         name=data['name'],
         email=data['email'],
+        contact=data.get('contact'), # YENİ ƏLAVƏ EDİLDİ
         password=hashed_password,
         student_invite_code=student_invite_code,
         parent_organizer_id=parent_organizer.id
     )
     db.session.add(new_affiliate)
     
-    # Təşkilatçının balansına komissiya məbləğini əlavə edirik
     parent_organizer.balance += parent_organizer.affiliate_commission
     
     db.session.commit()
     
     return jsonify({'message': 'Siz uğurla əlaqələndirici kimi qeydiyyatdan keçdiniz!'}), 201
-
 # Mövcud şagird qeydiyyatı funksiyasını yeniləmək lazımdır ki,
 # həm təşkilatçının, həm də əlaqələndiricinin dəvət kodunu qəbul etsin.
 # Bunun üçün köhnə /api/register funksiyasını aşağıdakı ilə əvəz edin.
 
+# Köhnə register funksiyasını bununla əvəz edin
+# app.py -> Köhnə /api/register funksiyasını bununla əvəz edin
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -1541,20 +1636,23 @@ def register():
         return jsonify({'message': 'Bu e-poçt artıq qeydiyyatdan keçib'}), 409
 
     hashed_password = bcrypt.generate_password_hash(data['password']).decode('utf-8')
-    
+
     organizer_id = None
     affiliate_id = None
-    
+    commission = None 
+
     invite_code = data.get('invite_code')
     if invite_code:
         organizer = Organizer.query.filter_by(invite_code=invite_code).first()
         affiliate = Affiliate.query.filter_by(student_invite_code=invite_code).first()
-        
+
         if organizer:
             organizer_id = organizer.id
+            commission = organizer.commission_amount
         elif affiliate:
             affiliate_id = affiliate.id
-            organizer_id = affiliate.parent_organizer_id # Şagirdi həm də əsas təşkilatçıya bağlayırıq
+            organizer_id = affiliate.parent_organizer_id
+            commission = affiliate.commission_rate
 
     new_user = User(
         name=data['name'], 
@@ -1566,22 +1664,10 @@ def register():
         email=data['email'], 
         password=hashed_password, 
         organizer_id=organizer_id,
-        affiliate_id=affiliate_id
+        affiliate_id=affiliate_id,
+        registration_commission=commission 
     )
     db.session.add(new_user)
-    db.session.flush()
-
-    # Əgər şagird təşkilatçıya bağlıdırsa, qonaq imtahanlarını hesaba əlavə et
-    if new_user.organizer_id:
-        guest_submissions = Submission.query.filter_by(guest_email=new_user.email, user_id=None).all()
-        for sub in guest_submissions:
-            sub.user_id = new_user.id
-            sub.guest_name = None
-            sub.guest_email = None
-            organizer_to_pay = Organizer.query.get(new_user.organizer_id)
-            if organizer_to_pay:
-                organizer_to_pay.balance += organizer_to_pay.commission_amount
-
     db.session.commit()
     return jsonify({'message': 'Qeydiyyat uğurlu oldu!'}), 201
 
@@ -1628,3 +1714,191 @@ def get_student_details(user_id):
         "class": student.class_
     }
     return jsonify(details)
+
+
+
+@app.route('/api/admin/submissions')
+@login_required
+def get_all_submissions():
+    if not isinstance(current_user, Admin):
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+
+    try:
+        exam_type_id = request.args.get('exam_type_id')
+        class_name_id = request.args.get('class_name_id')
+
+        query = db.session.query(
+            Submission, User.name, Exam.title, ExamType.name, ClassName.name
+        ).outerjoin(User, Submission.user_id == User.id)\
+         .join(Exam, Submission.exam_id == Exam.id)\
+         .join(ExamType, Exam.exam_type_id == ExamType.id)\
+         .join(ClassName, Exam.class_name_id == ClassName.id)
+
+        if exam_type_id:
+            query = query.filter(Exam.exam_type_id == exam_type_id)
+        if class_name_id:
+            query = query.filter(Exam.class_name_id == class_name_id)
+
+        all_submissions = query.order_by(Submission.score.desc()).all()
+
+        registered_list = []
+        guest_list = []
+
+        for sub, user_name, exam_title, exam_type_name, class_name in all_submissions:
+            submission_data = {
+                'student_name': user_name or "N/A",
+                'guest_name': sub.guest_name or "Qonaq",
+                'exam_title': exam_title,
+                'exam_type': exam_type_name,
+                'class_name': class_name,
+                'score': sub.score,
+                'date': sub.submitted_at.strftime('%Y-%m-%d %H:%M')
+            }
+            if sub.user_id:
+                registered_list.append(submission_data)
+            else:
+                guest_list.append(submission_data)
+
+        return jsonify({'registered': registered_list, 'guest': guest_list})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Nəticələri çəkərkən xəta baş verdi: {str(e)}"}), 500
+    
+    
+    
+    from sqlalchemy import func, extract
+from datetime import datetime
+
+# app.py faylının ən sonuna əlavə edin
+
+
+
+from sqlalchemy import func
+
+@app.route('/api/leaderboard')
+def get_leaderboard():
+    try:
+        period = request.args.get('period', 'month')
+        now = datetime.utcnow()
+
+        query = db.session.query(
+            User.name,
+            func.sum(Submission.score).label('total_score')
+        ).join(Submission, User.id == Submission.user_id)
+
+        if period == 'month':
+            query = query.filter(
+                extract('year', Submission.submitted_at) == now.year,
+                extract('month', Submission.submitted_at) == now.month
+            )
+        elif period == 'year':
+            query = query.filter(
+                extract('year', Submission.submitted_at) == now.year
+            )
+
+        leaderboard_data = query.group_by(User.id).order_by(func.sum(Submission.score).desc()).limit(10).all()
+
+        leaderboard_list = [
+            {"rank": i + 1, "name": name, "total_score": round(total_score if total_score else 0)}
+            for i, (name, total_score) in enumerate(leaderboard_data)
+        ]
+
+        return jsonify(leaderboard_list)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Daxili server xətası: {str(e)}"}), 500
+    
+    
+    
+    # app.py -> Köhnə get_affiliates_with_stats və get_my_affiliates funksiyalarını silib
+#           bu bütün bloku faylın sonuna əlavə edin.
+
+
+@app.route('/api/organizer/affiliate/<int:affiliate_id>/reset-balance', methods=['POST'])
+@login_required
+def organizer_reset_affiliate_balance(affiliate_id):
+    if not isinstance(current_user, Organizer):
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    
+    affiliate = Affiliate.query.filter_by(id=affiliate_id, parent_organizer_id=current_user.id).first_or_404()
+    affiliate.balance = 0.0
+    db.session.commit()
+    return jsonify({'message': f"'{affiliate.name}' adlı əlaqələndiricinin balansı sıfırlandı."})
+
+@app.route('/api/admin/affiliates_with_stats')
+@login_required
+def get_affiliates_with_stats():
+    if not isinstance(current_user, Admin): return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+
+    affiliates_query = db.session.query(
+        Affiliate,
+        Organizer.name.label('parent_name'),
+        func.count(func.distinct(User.id)).label('registered_count'),
+        func.count(func.distinct(Submission.user_id)).label('participated_count')
+    ).join(Organizer, Affiliate.parent_organizer_id == Organizer.id)\
+     .outerjoin(User, Affiliate.id == User.affiliate_id)\
+     .outerjoin(Submission, User.id == Submission.user_id)\
+     .group_by(Affiliate.id, Organizer.name).all()
+
+    result = [{
+        'id': aff.id, 'name': aff.name, 'email': aff.email, 'contact': aff.contact,
+        'bank_account': aff.bank_account,
+        'parent_organizer_name': parent_name, 
+        'commission_rate': aff.commission_rate,
+        'balance': aff.balance,
+        'registered_student_count': registered_count,
+        'participated_student_count': participated_count
+    } for aff, parent_name, registered_count, participated_count in affiliates_query]
+
+    return jsonify(result)
+
+# app.py -> Köhnə get_my_affiliates funksiyasını silin və bu bloku faylın sonuna əlavə edin
+
+@app.route('/api/admin/organizer/<int:org_id>/reset-balance', methods=['POST'])
+@login_required
+def admin_reset_organizer_balance(org_id):
+    if not isinstance(current_user, Admin):
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    organizer = Organizer.query.get_or_404(org_id)
+    organizer.balance = 0.0
+    db.session.commit()
+    return jsonify({'message': f"'{organizer.name}' adlı kordinatorun balansı sıfırlandı."})
+
+@app.route('/api/admin/affiliate/<int:affiliate_id>/reset-balance', methods=['POST'])
+@login_required
+def admin_reset_affiliate_balance(affiliate_id):
+    if not isinstance(current_user, Admin):
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    affiliate = Affiliate.query.get_or_404(affiliate_id)
+    affiliate.balance = 0.0
+    db.session.commit()
+    return jsonify({'message': f"'{affiliate.name}' adlı əlaqələndiricinin balansı sıfırlandı."})
+
+@app.route('/api/organizer/my-affiliates-details')
+@login_required
+def get_my_affiliates_details():
+    if not isinstance(current_user, Organizer): 
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    
+    affiliates_query = db.session.query(
+        Affiliate,
+        func.count(func.distinct(User.id)).label('registered_count'),
+        func.count(func.distinct(Submission.user_id)).label('participated_count')
+    ).filter(Affiliate.parent_organizer_id == current_user.id)\
+     .outerjoin(User, Affiliate.id == User.affiliate_id)\
+     .outerjoin(Submission, User.id == Submission.user_id)\
+     .group_by(Affiliate.id).all()
+
+    result = [{
+        'id': aff.id, 'name': aff.name, 'email': aff.email, 'contact': aff.contact,
+        'bank_account': aff.bank_account,
+        'commission_rate': aff.commission_rate,
+        'balance': aff.balance,
+        'registered_student_count': registered_count,
+        'participated_student_count': participated_count
+    } for aff, registered_count, participated_count in affiliates_query]
+    
+    return jsonify(result)

@@ -127,3 +127,26 @@ body::before {
 .submit-btn:hover {
     background-color: #218838;
 }
+
+
+/* KÖHNƏ .header STİLİNİ BUNLARLA ƏVƏZ EDİN */
+
+.header {
+    position: relative; /* Loqonun mərkəzlənməsi üçün vacibdir */
+    display: flex;
+    justify-content: flex-end; /* Naviqasiya düymələrini sağa çəkir */
+    align-items: center;
+    padding: 20px 50px;
+    background-color: #fff;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.logo {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}.profile-nav { display: flex; gap: 15px; }
+.nav-btn { text-decoration: none; padding: 8px 18px; border: 1px solid #ddd; border-radius: 8px; font-weight: 500; color: #333; transition: all 0.2s ease-in-out; }
+.nav-btn:hover { background-color: #f8f9fa; border-color: #ccc; }
+.nav-btn.logout { border-color: #dc3545; color: #dc3545; }
+.nav-btn.logout:hover { background-color: #dc3545; color: #fff; }

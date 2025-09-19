@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="az">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,12 +9,17 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
 
     <header class="header">
         <div class="logo">
             <h1><a href="index.html">BirSınaq</a></h1>
         </div>
+        <nav class="profile-nav">
+            <a href="index.html" class="nav-btn">Ana Səhifə</a>
+            <a href="#" id="logout-btn" class="nav-btn logout">Çıxış</a>
+        </nav>
     </header>
 
     <main class="profile-container">
@@ -45,7 +51,7 @@
                     <span class="info-value" id="display-language">Yüklənir...</span>
                 </div>
             </div>
-            
+
             <div id="profile-edit" class="profile-edit-form" style="display: none;">
                 <div class="form-group">
                     <label for="edit-name">Ad və Soyad</label>
@@ -76,7 +82,7 @@
 
             <a href="#" id="edit-toggle-btn" class="edit-btn">Məlumatları Dəyişdir</a>
         </div>
-        
+
         <div class="accordion-container">
             <button class="accordion-header">
                 <h3>Aldığı İmtahanlar</h3>
@@ -85,8 +91,8 @@
             <div class="accordion-content">
                 <ul class="exam-list">
 
-                 <ul class="exam-list" id="exam-history-list">
-                </ul>
+                    <ul class="exam-list" id="exam-history-list">
+                    </ul>
             </div>
         </div>
 
@@ -102,8 +108,9 @@
             </div>
         </div>
     </main>
-    
+
     <script src="script.js"></script>
-    
+
 </body>
+
 </html>

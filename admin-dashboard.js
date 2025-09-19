@@ -7,16 +7,32 @@ document.addEventListener('DOMContentLoaded', () => {
     let subjects = [];
     let allOrganizers = [];
 
+    // NAVİQASİYANIN YENİLƏNMİŞ VƏ DAHA STABİL KODU
     navItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             const targetId = item.querySelector('a').getAttribute('href').substring(1);
+
+            // 1. Bütün naviqasiya düymələrindən 'active' klassını silirik
             navItems.forEach(nav => nav.classList.remove('active'));
+            // 2. Yalnız kliklənən düyməyə 'active' klassını əlavə edirik
             item.classList.add('active');
-            sections.forEach(section => section.classList.toggle('active', section.id === targetId));
+
+            // 3. BÜTÜN bölmələri (sections) gizlədirik
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // 4. Yalnız hədəf bölməni tapıb göstəririk
+            const targetSection = document.getElementById(targetId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+
+            // 5. Hansı səhifəyə kliklənibsə, ona uyğun məlumatı yükləyirik
             if (targetId === 'exams') loadExams();
-            if (targetId === 'organizers') loadOrganizers();
-            if (targetId === 'students') loadStudents();
+            if (targetId === 'organizers') loadOrganizersAndAffiliates();
+            if (targetId === 'students') setupSubmissionsPage();
             if (targetId === 'teachers') setupTeachersSection();
             if (targetId === 'create-exam' && subjects.length === 0) {
                 loadExamMetaData();
@@ -71,66 +87,230 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- ŞAGİRDLƏR BÖLMƏSİ ---
-    function loadStudents() {
-        const registeredBody = document.getElementById('registered-students-table-body');
-        const guestBody = document.getElementById('guest-submissions-table-body');
-        if (!registeredBody || !guestBody) return;
-        fetch('/api/admin/students', { credentials: 'include' })
-            .then(response => response.json())
-            .then(data => {
-                const { registeredStudents, guestSubmissions } = data;
-                registeredBody.innerHTML = '';
-                if (!registeredStudents || registeredStudents.length === 0) {
-                    registeredBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Sistemdə qeydiyyatdan keçən şagird yoxdur.</td></tr>';
-                } else {
-                    registeredStudents.forEach(student => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `<td>${student.name}</td><td>${student.email}</td><td>${student.school}</td><td>${student.class}</td><td>${student.submissions.length}</td>`;
-                        registeredBody.appendChild(tr);
+    // YENİ FUNKSİYANİ BURA ƏLAVƏ EDİN
+    function setupSubmissionsPage() {
+        const examTypeFilter = document.getElementById('filter-exam-type');
+        const classNameFilter = document.getElementById('filter-class-name');
+        const clearBtn = document.getElementById('clear-filters-btn');
+        const registeredTableBody = document.getElementById('registered-students-table-body');
+        const guestTableBody = document.getElementById('guest-submissions-table-body');
+
+        let metaLoaded = false;
+        function loadMeta() {
+            if (metaLoaded || !examTypeFilter || !classNameFilter) return;
+            fetch('/api/admin/exam-meta', { credentials: 'include' })
+                .then(res => res.json())
+                .then(meta => {
+                    examTypeFilter.innerHTML = '<option value="">Bütün Növlər</option>';
+                    classNameFilter.innerHTML = '<option value="">Bütün Siniflər</option>';
+                    meta.examTypes.forEach(type => {
+                        examTypeFilter.innerHTML += `<option value="${type.id}">${type.name}</option>`;
                     });
-                }
-                guestBody.innerHTML = '';
-                if (!guestSubmissions || guestSubmissions.length === 0) {
-                    guestBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Hesaba bağlanmamış qonaq iştirakçı yoxdur.</td></tr>';
-                } else {
-                    guestSubmissions.forEach(sub => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `<td>${sub.guestName}</td><td>${sub.guestEmail}</td><td>${sub.examName}</td><td>${sub.score} bal</td><td>${sub.submittedAt}</td>`;
-                        guestBody.appendChild(tr);
+                    meta.classNames.forEach(cls => {
+                        classNameFilter.innerHTML += `<option value="${cls.id}">${cls.name}</option>`;
                     });
-                }
-            }).catch(error => {
-                console.error("Şagirdləri yükləyərkən xəta:", error);
-                registeredBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Məlumatları yükləmək mümkün olmadı.</td></tr>';
-                guestBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Məlumatları yükləmək mümkün olmadı.</td></tr>';
-            });
+                    metaLoaded = true;
+                });
+        }
+
+        function loadSubmissions() {
+            const typeId = examTypeFilter.value;
+            const classId = classNameFilter.value;
+
+            let url = '/api/admin/submissions?';
+            if (typeId) url += `exam_type_id=${typeId}&`;
+            if (classId) url += `class_name_id=${classId}`;
+
+            registeredTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Yüklənir...</td></tr>';
+            guestTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Yüklənir...</td></tr>';
+
+            fetch(url, { credentials: 'include' })
+                .then(res => res.json())
+                .then(data => {
+                    registeredTableBody.innerHTML = '';
+                    if (data.registered && data.registered.length > 0) {
+                        data.registered.forEach(sub => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                            <td>${sub.student_name}</td>
+                            <td>${sub.exam_title}</td>
+                            <td><strong>${sub.score}</strong></td>
+                            <td>${sub.date}</td>
+                        `;
+                            registeredTableBody.appendChild(tr);
+                        });
+                    } else {
+                        registeredTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nəticə tapılmadı.</td></tr>';
+                    }
+
+                    guestTableBody.innerHTML = '';
+                    if (data.guest && data.guest.length > 0) {
+                        data.guest.forEach(sub => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                            <td>${sub.guest_name}</td>
+                            <td>${sub.exam_title}</td>
+                            <td><strong>${sub.score}</strong></td>
+                            <td>${sub.date}</td>
+                        `;
+                            guestTableBody.appendChild(tr);
+                        });
+                    } else {
+                        guestTableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nəticə tapılmadı.</td></tr>';
+                    }
+                });
+        }
+
+        examTypeFilter.addEventListener('change', loadSubmissions);
+        classNameFilter.addEventListener('change', loadSubmissions);
+        clearBtn.addEventListener('click', () => {
+            examTypeFilter.value = '';
+            classNameFilter.value = '';
+            loadSubmissions();
+        });
+
+        loadMeta();
+        loadSubmissions();
     }
 
     // --- TƏŞKİLATÇILAR BÖLMƏSİ ---
-    function loadOrganizers() {
+    // admin-dashboard.js -> Köhnə loadOrganizers funksiyasını silib bunu əlavə edin
+    // admin-dashboard.js -> Köhnə loadOrganizersAndAffiliates funksiyasını bununla əvəz edin
+    // admin-dashboard.js -> Köhnə loadOrganizersAndAffiliates funksiyasını bu YENİ versiya ilə əvəz edin
+
+    function loadOrganizersAndAffiliates() {
         const organizersTableBody = document.getElementById('organizers-table-body');
-        if (!organizersTableBody) return;
-        fetch('/api/admin/organizers', { credentials: 'include' })
-            .then(response => response.json())
+        const affiliatesTableBody = document.getElementById('affiliates-table-body');
+        if (!organizersTableBody || !affiliatesTableBody) return;
+
+        // Kordinatorları yükləyirik
+        fetch('/api/admin/organizers_with_stats', { credentials: 'include' })
+            .then(response => {
+                if (!response.ok) throw new Error('Kordinatorları yükləmək mümkün olmadı');
+                return response.json();
+            })
             .then(organizers => {
                 allOrganizers = organizers;
                 organizersTableBody.innerHTML = '';
-                if (!organizers || organizers.length === 0) {
-                    organizersTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Heç bir təşkilatçı qeydiyyatdan keçməyib.</td></tr>';
-                    return;
+                if (Array.isArray(organizers) && organizers.length > 0) {
+                    organizers.forEach(org => {
+                        const tr = document.createElement('tr');
+                        const status = org.can_invite_affiliates ? `<span style="color: green; font-weight: bold;">Kordinator</span>` : `<span>Təşkilatçı</span>`;
+                        tr.innerHTML = `
+                        <td>${org.name}</td>
+                        <td>${org.email}<br><small>${org.contact || 'N/A'}</small></td>
+                        <td>${org.bank_account || 'N/A'}</td>
+                        <td>${(org.balance || 0).toFixed(2)}</td>
+                        <td>${status}</td>
+                        <td>${(org.commission_amount || 0).toFixed(2)}</td>
+                        <td><strong>${org.registered_student_count}</strong> (${org.participated_student_count})</td>
+                        <td class="actions">
+                            <button class="edit-btn" data-org-id="${org.id}">Redaktə Et</button>
+                            <button class="affiliate-settings-btn" data-org-id="${org.id}">Ayarlar</button>
+                            <button class="reset-balance-btn" data-org-id="${org.id}" data-type="organizer" data-name="${org.name}">Sıfırla</button>
+                        </td>`;
+                        organizersTableBody.appendChild(tr);
+                    });
+                } else {
+                    organizersTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Heç bir kordinator qeydiyyatdan keçməyib.</td></tr>';
                 }
-                organizers.forEach(org => {
-                    const tr = document.createElement('tr');
-                    const status = org.can_invite_affiliates ? `<span style="color: green; font-weight: bold;">Kordinator</span>` : `<span>Təşkilatçı</span>`;
-                    tr.innerHTML = `<td>${org.name}</td><td>${org.email}</td><td>${org.balance.toFixed(2)}</td><td>${status}</td><td class="actions"><button class="edit-btn" data-org-id="${org.id}">Redaktə Et</button><button class="affiliate-settings-btn" data-org-id="${org.id}">Ayarlar</button></td>`;
-                    organizersTableBody.appendChild(tr);
-                });
+            }).catch(err => {
+                organizersTableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; color: red;">${err.message}</td></tr>`;
+            });
+
+        // Əlaqələndiriciləri yükləyirik
+        fetch('/api/admin/affiliates_with_stats', { credentials: 'include' })
+            .then(response => {
+                if (!response.ok) throw new Error('Əlaqələndiriciləri yükləmək mümkün olmadı');
+                return response.json();
             })
-            .catch(error => {
-                console.error('Təşkilatçıları yükləyərkən xəta:', error);
-                organizersTableBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Məlumatları yükləmək mümkün olmadı.</td></tr>';
+            .then(affiliates => {
+                affiliatesTableBody.innerHTML = '';
+                if (Array.isArray(affiliates) && affiliates.length > 0) {
+                    affiliates.forEach(aff => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                        <td>${aff.name}</td>
+                        <td>${aff.email}<br><small>${aff.contact || 'N/A'}</small></td>
+                        <td>${aff.parent_organizer_name}</td>
+                        <td>${(aff.balance || 0).toFixed(2)}</td>
+                        <td>${(aff.commission_rate || 0).toFixed(2)}</td>
+                        <td><strong>${aff.registered_student_count}</strong> (${aff.participated_student_count})</td>
+                        <td class="actions">
+                            <button class="edit-commission-btn" data-aff-id="${aff.id}" data-current-rate="${aff.commission_rate}" data-aff-name="${aff.name}">Dəyiş</button>
+                            <button class="reset-balance-btn" data-aff-id="${aff.id}" data-type="affiliate" data-name="${aff.name}">Sıfırla</button>
+                        </td>`;
+                        affiliatesTableBody.appendChild(tr);
+                    });
+                } else {
+                    affiliatesTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Heç bir əlaqələndirici tapılmadı.</td></tr>';
+                }
+            }).catch(err => {
+                affiliatesTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: red;">${err.message}</td></tr>`;
             });
     }
+
+    // admin-dashboard.js -> navItems.forEach içindəki 'if' şərtlərindən birini dəyişin
+    // KÖHNƏ: if (targetId === 'organizers') loadOrganizers();
+    // YENİ:
+    // KÖHNƏ SƏHV NAVİQASİYA KODUNU BUNUNLA TAM ƏVƏZ EDİN
+
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = item.querySelector('a').getAttribute('href').substring(1);
+
+            // Bütün naviqasiya düymələrindən 'active' klassını silirik
+            navItems.forEach(nav => nav.classList.remove('active'));
+            // Yalnız kliklənən düyməyə 'active' klassını əlavə edirik
+            item.classList.add('active');
+
+            // BÜTÜN bölmələri (sections) gizlədirik
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // Yalnız hədəf bölməni tapıb göstəririk
+            const targetSection = document.getElementById(targetId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+
+            // Hansı səhifəyə kliklənibsə, ona uyğun məlumatı yükləyirik
+            if (targetId === 'exams') loadExams();
+            if (targetId === 'organizers') loadOrganizersAndAffiliates(); // DÜZƏLİŞ BURADADIR
+            if (targetId === 'students') setupSubmissionsPage();
+            if (targetId === 'teachers') setupTeachersSection();
+            if (targetId === 'create-exam' && subjects.length === 0) {
+                loadExamMetaData();
+            }
+        });
+    });
+
+    // admin-dashboard.js -> Faylın içində uyğun bir yerə bu klik eventini əlavə edin
+    document.getElementById('organizers').addEventListener('click', e => {
+        if (e.target.classList.contains('edit-commission-btn')) {
+            const affId = e.target.dataset.affId;
+            const currentRate = e.target.dataset.currentRate;
+            const affName = e.target.dataset.affName;
+
+            const newRate = prompt(`'${affName}' üçün yeni komissiya məbləğini daxil edin (AZN):`, currentRate);
+
+            if (newRate !== null && !isNaN(parseFloat(newRate))) {
+                fetch(`/api/admin/affiliate/${affId}/commission`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ commission_rate: newRate })
+                })
+                    .then(res => res.json())
+                    .then(result => {
+                        alert(result.message);
+                        loadOrganizersAndAffiliates(); // Cədvəli yenilə
+                    });
+            }
+        }
+    });
     const organizersSection = document.getElementById('organizers');
     const modal = document.getElementById('organizer-edit-modal');
     const closeModalBtn = document.getElementById('close-modal-btn');
@@ -139,31 +319,65 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeAffiliateModalBtn = document.getElementById('close-affiliate-modal-btn');
     const affiliateForm = document.getElementById('affiliate-settings-form');
 
+    // admin-dashboard.js -> Köhnə organizersSection.addEventListener blokunu bununla TAM ƏVƏZ EDİN
+
     if (organizersSection) {
         organizersSection.addEventListener('click', (e) => {
             const targetButton = e.target.closest('button');
             if (!targetButton) return;
+
+            // Əlaqələndiricinin komissiyasını dəyişmək üçün olan hissə
+            if (targetButton.classList.contains('edit-commission-btn')) {
+                const affId = targetButton.dataset.affId;
+                const currentRate = targetButton.dataset.currentRate;
+                const affName = targetButton.dataset.affName;
+                const newRate = prompt(`'${affName}' üçün yeni komissiya məbləğini daxil edin (AZN):`, currentRate);
+
+                if (newRate !== null && !isNaN(parseFloat(newRate))) {
+                    fetch(`/api/admin/affiliate/${affId}/commission`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ commission_rate: newRate })
+                    })
+                        .then(res => res.json())
+                        .then(result => {
+                            alert(result.message);
+                            loadOrganizersAndAffiliates(); // Cədvəli yenilə
+                        });
+                }
+                return; // Bu düyməyə aiddirsə, aşağıdakı kodlar işləməsin
+            }
+
+            // Kordinatorun məlumatlarını redaktə etmək və ya ayarlara baxmaq üçün olan hissə
             const orgId = targetButton.dataset.orgId;
             if (!orgId) return;
+
+            // Məlumatları HƏMİŞƏ yenilənmiş `allOrganizers` massivindən götürürük
             const organizerData = allOrganizers.find(org => org.id === parseInt(orgId));
-            if (!organizerData) return;
+            if (!organizerData) {
+                alert("Təşkilatçı məlumatları tapılmadı. Səhifəni yeniləyib təkrar yoxlayın.");
+                return;
+            };
 
             if (targetButton.classList.contains('edit-btn')) {
+                const modal = document.getElementById('organizer-edit-modal');
                 document.getElementById('edit-org-id').value = organizerData.id;
                 document.getElementById('edit-org-name').value = organizerData.name;
                 document.getElementById('edit-org-email').value = organizerData.email;
-                document.getElementById('edit-org-contact').value = organizerData.contact;
-                document.getElementById('edit-org-bank').value = organizerData.bank_account;
-                document.getElementById('edit-org-commission').value = organizerData.commission_amount;
-                modal.style.display = 'block';
+                document.getElementById('edit-org-contact').value = organizerData.contact; // Artıq 'undefined' olmayacaq
+                document.getElementById('edit-org-bank').value = organizerData.bank_account; // Artıq 'undefined' olmayacaq
+                document.getElementById('edit-org-commission').value = organizerData.commission_amount; // Dəyişən qiymət burada görünəcək
+                if (modal) modal.style.display = 'block';
             }
 
             if (targetButton.classList.contains('affiliate-settings-btn')) {
+                const affiliateModal = document.getElementById('affiliate-settings-modal');
                 document.getElementById('affiliate-org-id').value = organizerData.id;
                 document.getElementById('can-invite-affiliates').checked = organizerData.can_invite_affiliates;
                 document.getElementById('affiliate-limit').value = organizerData.affiliate_invite_limit;
                 document.getElementById('affiliate-commission').value = organizerData.affiliate_commission;
-                affiliateModal.style.display = 'block';
+                if (affiliateModal) affiliateModal.style.display = 'block';
             }
         });
     }
@@ -197,16 +411,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 .then(res => res.json())
                 .then(result => {
                     alert(result.message);
+                    // ...
                     if (result.message.includes('uğurla')) {
                         affiliateModal.style.display = 'none';
-                        loadOrganizers();
+                        loadOrganizersAndAffiliates();
                     }
+                    // ...
                 })
                 .catch(err => alert("Xəta baş verdi."));
         });
     }
     if (closeModalBtn) { closeModalBtn.onclick = () => { modal.style.display = 'none'; } }
     window.onclick = (event) => { if (event.target == modal) { modal.style.display = 'none'; } }
+    // admin-dashboard.js -> Köhnə editForm.addEventListener blokunu bununla əvəz edin
+
     if (editForm) {
         editForm.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -215,11 +433,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 commission_amount: document.getElementById('edit-org-commission').value
             };
             fetch(`/api/admin/organizer/${orgId}/update`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify(updatedData)
-            }).then(res => res.json().then(data => ({ ok: res.ok, data }))).then(({ ok, data }) => {
-                alert(data.message); if (ok) { modal.style.display = 'none'; loadOrganizers(); }
-            });
+            })
+                .then(response => {
+                    // Serverdən gələn cavabın uğurlu olub-olmadığını yoxlayırıq
+                    if (!response.ok) {
+                        // Əgər cavab uğursuzdursa, xəta mesajını oxuyub göstəririk
+                        return response.json().then(err => { throw new Error(err.message || 'Naməlum xəta baş verdi') });
+                    }
+                    return response.json(); // Uğurludursa, JSON-a çeviririk
+                })
+                .then(data => {
+                    // Uğurlu cavabı alert ilə göstəririk
+                    alert(data.message);
+                    modal.style.display = 'none';
+                    loadOrganizersAndAffiliates(); // Cədvəli yeniləyirik
+                })
+                .catch(error => {
+                    // İstənilən növ xətanı (serverdən gələn və ya şəbəkə xətası) burada tuturuq
+                    console.error('Redaktə zamanı xəta:', error);
+                    alert(`Xəta baş verdi: ${error.message}`);
+                });
         });
     }
 
@@ -311,18 +548,30 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     }
 
-    if (examTypeSelect) {
-        examTypeSelect.addEventListener('change', (e) => {
-            const selectedText = e.target.options[e.target.selectedIndex].text;
-            document.querySelectorAll('.question-block').forEach(qBlock => {
-                const pointsField = qBlock.querySelector('.points-field');
-                if (pointsField) {
-                    pointsField.style.display = (selectedText === 'İbtidai Sinif') ? 'block' : 'none';
-                }
-            });
+
+
+    // admin-dashboard.js -> Bu yeni funksiyanı fayla əlavə edin
+    function togglePointsFields() {
+        const examTypeSelect = document.getElementById('exam-type');
+        if (!examTypeSelect.value) return; // Hələ növ seçilməyibsə heçnə etmə
+
+        const selectedTypeText = examTypeSelect.options[examTypeSelect.selectedIndex].text.toLowerCase();
+        const showPoints = !selectedTypeText.includes('buraxılış') && !selectedTypeText.includes('blok');
+
+        document.querySelectorAll('.question-block').forEach(qBlock => {
+            const pointsField = qBlock.querySelector('.points-field');
+            if (pointsField) {
+                pointsField.style.display = showPoints ? 'block' : 'none';
+            }
         });
     }
 
+    // admin-dashboard.js -> Köhnə "if (examTypeSelect)" blokunu bununla əvəz edin
+    if (examTypeSelect) {
+        examTypeSelect.addEventListener('change', togglePointsFields);
+    }
+
+    // admin-dashboard.js -> Köhnə "if (addQuestionBtn)" blokunu bununla TAM ƏVƏZ EDİN
     if (addQuestionBtn) {
         addQuestionBtn.addEventListener('click', () => {
             questionCounter++;
@@ -330,100 +579,142 @@ document.addEventListener('DOMContentLoaded', () => {
             questionBlock.className = 'question-block';
             questionBlock.id = `question-block-${questionCounter}`;
             const subjectOptions = subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-            const isPrimarySelected = examTypeSelect.options[examTypeSelect.selectedIndex]?.text === 'İbtidai Sinif';
 
             questionBlock.innerHTML = `
-                <h4>Sual ${questionCounter} <button type="button" class="remove-question-btn">Sil</button></h4>
-                <div class="form-grid">
-                    <div class="form-group"><label>Fənn</label><select class="question-subject" required>${subjectOptions}</select></div>
-                    <div class="form-group"><label>Sualın Növü</label><select class="question-type-select" data-block-id="${questionCounter}" required><option value="closed">Qapalı (Variantlı)</option><option value="open">Açıq (Yazılı)</option><option value="situational">Situasiya</option><option value="matching">Uyğunluq</option><option value="fast_tree">Fast Tree (Doğru/Yalan)</option></select></div>
-                </div>
-                <div class="form-grid">
-                    <div class="form-group"><label>Mövzu</label><input type="text" class="question-topic" placeholder="Sualın aid olduğu mövzu..."></div>
-                    <div class="form-group"><label>Çətinlik Dərəcəsi</label><select class="question-difficulty"><option value="asan">Asan</option><option value="orta">Orta</option><option value="cetin">Çətin</option></select></div>
-                </div>
-                <div class="form-grid">
-                    <div class="form-group points-field" style="display: ${isPrimarySelected ? 'block' : 'none'};"><label>Sualın balı (İbtidai Sinif üçün)</label><input type="number" class="question-points" value="1" min="1"></div>
-                    <div class="form-group"><label>Videoizah üçün Başlanğıc Vaxtı</label><div class="time-input-container"><input type="number" class="time-input-minutes" min="0" max="599" placeholder="MM" value="0"><span class="time-input-separator">:</span><input type="number" class="time-input-seconds" min="0" max="59" placeholder="SS" value="0"></div></div>
-                </div>
-                <div class="form-group audio-upload-field" style="display: none;"><label>Dinləmə üçün audio fayl (.mp3, .wav)</label><input type="file" class="question-audio" accept="audio/*"></div>
-                <div id="main-fields-${questionCounter}">
-                    <div class="form-group"><label>Sualın Mətni / Ana Təlimat</label><textarea id="question-text-${questionCounter}" class="question-text tinymce-editor" placeholder="Sualın mətnini bura daxil edin..."></textarea></div>
-                    <div class="form-group"><label>Sual üçün şəkil (Əgər redaktorun içində əlavə etmək istəmirsinizsə)</label><input type="file" class="question-image" accept="image/*"></div>
-                </div>
-                <div id="specific-area-${questionCounter}"></div>
-            `;
+            <h4>Sual ${questionCounter} <button type="button" class="remove-question-btn">Sil</button></h4>
+            <div class="form-grid">
+                <div class="form-group"><label>Fənn</label><select class="question-subject" required>${subjectOptions}</select></div>
+                <div class="form-group"><label>Sualın Növü</label><select class="question-type-select" data-block-id="${questionCounter}" required><option value="closed">Qapalı (Variantlı)</option><option value="open">Açıq (Yazılı)</option><option value="situational">Situasiya</option><option value="matching">Uyğunluq</option><option value="fast_tree">Fast Tree (Doğru/Yalan)</option></select></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group"><label>Mövzu</label><input type="text" class="question-topic" placeholder="Sualın aid olduğu mövzu..."></div>
+                <div class="form-group"><label>Çətinlik Dərəcəsi</label><select class="question-difficulty"><option value="asan">Asan</option><option value="orta">Orta</option><option value="cetin">Çətin</option></select></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group points-field" style="display: none;"><label>Sualın balı</label><input type="number" class="question-points" value="1" min="1"></div>
+                <div class="form-group"><label>Videoizah üçün Başlanğıc Vaxtı</label><div class="time-input-container"><input type="number" class="time-input-minutes" min="0" max="599" placeholder="MM" value="0"><span class="time-input-separator">:</span><input type="number" class="time-input-seconds" min="0" max="59" placeholder="SS" value="0"></div></div>
+            </div>
+            <div class="form-group audio-upload-field" style="display: none;"><label>Dinləmə üçün audio fayl (.mp3, .wav)</label><input type="file" class="question-audio" accept="audio/*"></div>
+            <div id="main-fields-${questionCounter}">
+                <div class="form-group"><label>Sualın Mətni / Ana Təlimat</label><textarea id="question-text-${questionCounter}" class="question-text tinymce-editor" placeholder="Sualın mətnini bura daxil edin..."></textarea></div>
+                <div class="form-group"><label>Sual üçün şəkil</label><input type="file" class="question-image" accept="image/*"></div>
+            </div>
+            <div id="specific-area-${questionCounter}"></div>
+        `;
             questionsContainer.appendChild(questionBlock);
-            renderSpecificFields('closed', questionCounter);
+
+            // Yalnız yeni yaradılan redaktorları hədəfləyirik
             tinymce.init({
-                selector: `#question-block-${questionCounter} .tinymce-editor`,
+                selector: `#question-text-${questionCounter}, #specific-area-${questionCounter} .tinymce-editor`,
                 plugins: 'lists link image table code help wordcount',
                 toolbar: 'undo redo | blocks | bold italic backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | removeformat | help',
                 height: 250,
             });
+
+            togglePointsFields();
+            renderSpecificFields('closed', questionCounter);
         });
     }
 
     // renderSpecificFields funksiyasını bununla tam əvəz edin
-function renderSpecificFields(type, blockId) {
-    const specificArea = document.getElementById(`specific-area-${blockId}`);
-    const mainFields = document.getElementById(`main-fields-${blockId}`);
-    let content = '';
+    function renderSpecificFields(type, blockId) {
+        const specificArea = document.getElementById(`specific-area-${blockId}`);
+        const mainFields = document.getElementById(`main-fields-${blockId}`);
+        let content = '';
 
-    if(mainFields) {
-        const questionTextLabel = mainFields.querySelector('.question-text').closest('.form-group').querySelector('label');
-        const questionImageInput = mainFields.querySelector('.question-image').closest('.form-group');
-        questionTextLabel.textContent = 'Sualın Mətni / Ana Təlimat';
-        questionImageInput.style.display = 'block';
+        if (mainFields) {
+            const questionTextLabel = mainFields.querySelector('.question-text').closest('.form-group').querySelector('label');
+            const questionImageInput = mainFields.querySelector('.question-image').closest('.form-group');
+            questionTextLabel.textContent = 'Sualın Mətni / Ana Təlimat';
+            questionImageInput.style.display = 'block';
+        }
+
+        const existingEditors = specificArea.querySelectorAll('.tinymce-editor');
+        existingEditors.forEach(editor => {
+            const editorId = editor.id;
+            if (editorId) {
+                const tinymceInstance = tinymce.get(editorId);
+                if (tinymceInstance) { tinymceInstance.remove(); }
+            }
+        });
+
+        if (type === 'closed') {
+            const variants = ['A', 'B', 'C', 'D', 'E'];
+            let optionsHTML = variants.map(v => `<div class="form-group option-block"><label>Variant ${v}</label><textarea id="option-text-${blockId}-${v}" class="option-text tinymce-editor" data-variant="${v}"></textarea><input type="file" class="option-image" data-variant="${v}" accept="image/*"></div>`).join('');
+            content = `<div class="options-container">${optionsHTML}</div><div class="form-group"><label>Düzgün Cavab Variantı</label><select class="correct-answer-closed">${variants.map(v => `<option value="${v}">${v}</option>`).join('')}</select></div>`;
+
+        } // admin-dashboard.js -> renderSpecificFields funksiyasının içindəki 'open' hissəsi
+
+        else if (type === 'open') {
+            // Baloncuq (grid) interfeysini yaradırıq
+            let gridHTML = '<div class="grid-input-container">';
+            gridHTML += '<input type="text" class="grid-display" readonly placeholder="Cavab burada görünəcək">';
+            gridHTML += '<div class="grid-columns">';
+
+            // 6 sütun yaradırıq
+            for (let i = 0; i < 6; i++) {
+                gridHTML += '<div class="grid-column">';
+                // Hər sütunda 0-9 arası rəqəmlər
+                for (let j = 0; j <= 9; j++) {
+                    gridHTML += `<div class="grid-bubble" data-value="${j}">${j}</div>`;
+                }
+                gridHTML += `<div class="grid-bubble" data-value=",">,</div>`;
+                gridHTML += '</div>';
+            }
+            gridHTML += '</div></div>';
+
+            content = `
+        <div class="form-group">
+            <label>Düzgün Cavab</label>
+            <textarea id="correct-answer-open-${blockId}" class="correct-answer-open tinymce-editor"></textarea>
+
+            <div class="grid-toggle-wrapper">
+                <button type="button" class="grid-toggle-btn" data-block-id="${blockId}">Kodlaşdırma Vərəqini Göstər/Gizlət</button>
+                <div class="grid-input-wrapper" style="display: none;">
+                    ${gridHTML}
+                </div>
+            </div>
+        </div>
+    `;
+        } else if (type === 'situational') {
+            if (mainFields) {
+                mainFields.querySelector('.question-text').closest('.form-group').querySelector('label').textContent = 'Situasiyanın Ana Mətni';
+                mainFields.querySelector('.question-image').closest('.form-group').style.display = 'none';
+            }
+            content = `<div class="sub-questions-container"></div><button type="button" class="add-sub-question-btn" data-parent-id="${blockId}">+ Alt-Sual Əlavə Et</button>`;
+
+        } else if (type === 'matching') {
+            content = `<div class="matching-container"><div class="matching-column"><h5>Nömrələnmiş Bəndlər (<button type="button" class="add-matching-item-btn" data-type="numbered" data-block-id="${blockId}">+</button>)</h5><div class="matching-items-list" id="numbered-items-${blockId}"><div class="matching-item"><input type="text" placeholder="1-ci bəndin mətni"><button type="button" class="remove-matching-item-btn">X</button></div></div></div><div class="matching-column"><h5>Hərflənmiş Bəndlər (<button type="button" class="add-matching-item-btn" data-type="lettered" data-block-id="${blockId}">+</button>)</h5><div class="matching-items-list" id="lettered-items-${blockId}"><div class="matching-item"><input type="text" placeholder="A bəndinin mətni"><button type="button" class="remove-matching-item-btn">X</button></div></div></div></div><h5>Düzgün Cavabları Qeyd Edin</h5><div class="matching-answers-list" id="matching-answers-${blockId}"></div>`;
+
+        } else if (type === 'fast_tree') {
+            if (mainFields) {
+                mainFields.querySelector('.question-text').closest('.form-group').querySelector('label').textContent = 'Ana Təlimat (məs: Mətnə əsasən cümlələrin doğruluğunu müəyyən edin)';
+            }
+            content = `<h5>Sub-questions (True/False Statements)</h5><div class="fast-tree-items-list" id="fast-tree-items-${blockId}"><div class="fast-tree-item"><input type="text" placeholder="1st statement text..."><select class="fast-tree-answer"><option value="A">True (A)</option><option value="B">False (B)</option></select><button type="button" class="remove-matching-item-btn">X</button></div></div><button type="button" class="add-matching-item-btn" data-type="fast_tree" data-block-id="${blockId}">+ Add Statement</button>`;
+        }
+
+        specificArea.innerHTML = content;
+
+        if (type === 'matching') {
+            updateMatchingAnswerUI(blockId);
+        }
+
+        tinymce.init({
+            selector: `#specific-area-${blockId} .tinymce-editor`,
+            plugins: 'lists link image table code help wordcount',
+            toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist | removeformat | help',
+            height: 200,
+        });
     }
 
-    const existingEditors = specificArea.querySelectorAll('.tinymce-editor');
-    existingEditors.forEach(editor => {
-        const editorId = editor.id;
-        if (editorId) {
-            const tinymceInstance = tinymce.get(editorId);
-            if (tinymceInstance) { tinymceInstance.remove(); }
-        }
-    });
-
-    if (type === 'closed') {
-        const variants = ['A', 'B', 'C', 'D', 'E'];
-        let optionsHTML = variants.map(v => `<div class="form-group option-block"><label>Variant ${v}</label><textarea id="option-text-${blockId}-${v}" class="option-text tinymce-editor" data-variant="${v}"></textarea><input type="file" class="option-image" data-variant="${v}" accept="image/*"></div>`).join('');
-        content = `<div class="options-container">${optionsHTML}</div><div class="form-group"><label>Düzgün Cavab Variantı</label><select class="correct-answer-closed">${variants.map(v => `<option value="${v}">${v}</option>`).join('')}</select></div>`;
-    } else if (type === 'open') {
-        content = `<div class="form-group"><label>Düzgün Cavab</label><textarea id="correct-answer-open-${blockId}" class="correct-answer-open tinymce-editor"></textarea></div>`;
-    } else if (type === 'situational') {
-        if(mainFields) {
-            mainFields.querySelector('.question-text').closest('.form-group').querySelector('label').textContent = 'Situasiyanın Ana Mətni';
-            mainFields.querySelector('.question-image').closest('.form-group').style.display = 'none';
-        }
-        content = `<div class="sub-questions-container"></div><button type="button" class="add-sub-question-btn" data-parent-id="${blockId}">+ Alt-Sual Əlavə Et</button>`;
-    } else if (type === 'matching') {
-        content = `<div class="matching-container"><div class="matching-column"><h5>Nömrələnmiş Bəndlər (<button type="button" class="add-matching-item-btn" data-type="numbered" data-block-id="${blockId}">+</button>)</h5><div class="matching-items-list" id="numbered-items-${blockId}"><div class="matching-item"><input type="text" placeholder="1-ci bəndin mətni"><button type="button" class="remove-matching-item-btn">X</button></div></div></div><div class="matching-column"><h5>Hərflənmiş Bəndlər (<button type="button" class="add-matching-item-btn" data-type="lettered" data-block-id="${blockId}">+</button>)</h5><div class="matching-items-list" id="lettered-items-${blockId}"><div class="matching-item"><input type="text" placeholder="A bəndinin mətni"><button type="button" class="remove-matching-item-btn">X</button></div></div></div></div><h5>Düzgün Cavabları Qeyd Edin</h5><div class="matching-answers-list" id="matching-answers-${blockId}"></div>`;
-    } else if (type === 'fast_tree') {
-        if(mainFields) {
-            mainFields.querySelector('.question-text').closest('.form-group').querySelector('label').textContent = 'Ana Təlimat (məs: Mətnə əsasən cümlələrin doğruluğunu müəyyən edin)';
-        }
-        content = `<h5>Sub-questions (True/False Statements)</h5><div class="fast-tree-items-list" id="fast-tree-items-${blockId}"><div class="fast-tree-item"><input type="text" placeholder="1st statement text..."><select class="fast-tree-answer"><option value="A">True (A)</option><option value="B">False (B)</option></select><button type="button" class="remove-matching-item-btn">X</button></div></div><button type="button" class="add-matching-item-btn" data-type="fast_tree" data-block-id="${blockId}">+ Add Statement</button>`;
-    }
-
-    specificArea.innerHTML = content;
-
-    if (type === 'matching') {
-        updateMatchingAnswerUI(blockId);
-    }
-
-    tinymce.init({
-        selector: `#specific-area-${blockId} .tinymce-editor`,
-        plugins: 'lists link image table code help wordcount',
-        toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist | removeformat | help',
-        height: 200,
-    });
-}
-
+    // KÖHNƏ BLOKU BUNUNLA TAM ƏVƏZ EDİN
     if (questionsContainer) {
+        // KLİKLƏRİ İDARƏ EDƏN HİSSƏ
         questionsContainer.addEventListener('click', e => {
+            // Sualı silmək üçün
             if (e.target.classList.contains('remove-question-btn')) { e.target.closest('.question-block').remove(); }
+
+            // Situasiyaya alt-sual əlavə etmək üçün
             if (e.target.classList.contains('add-sub-question-btn')) {
                 const subContainer = e.target.previousElementSibling;
                 const subQuestionCount = subContainer.children.length + 1;
@@ -432,6 +723,8 @@ function renderSpecificFields(type, blockId) {
                 subQuestion.innerHTML = `<label>Alt-Sual ${subQuestionCount}</label><input type="text" class="sub-question-text" required placeholder="Alt-sualın mətnini bura yazın">`;
                 subContainer.appendChild(subQuestion);
             }
+
+            // Uyğunlaşdırma və Fast Tree suallarına bənd əlavə etmək üçün
             if (e.target.classList.contains('add-matching-item-btn')) {
                 const blockId = e.target.dataset.blockId;
                 const type = e.target.dataset.type;
@@ -453,6 +746,8 @@ function renderSpecificFields(type, blockId) {
                     updateMatchingAnswerUI(blockId);
                 }
             }
+
+            // Uyğunlaşdırma və Fast Tree suallarından bənd silmək üçün
             if (e.target.classList.contains('remove-matching-item-btn')) {
                 const blockId = e.target.closest('.question-block').id.split('-')[2];
                 const questionTypeContainer = e.target.closest('#specific-area-' + blockId);
@@ -461,8 +756,55 @@ function renderSpecificFields(type, blockId) {
                     updateMatchingAnswerUI(blockId);
                 }
             }
+
+            // ===== YENİ KODLAŞDIRMA VƏRƏQİ ÜÇÜN ƏLAVƏ EDİLƏN HİSSƏ BAŞLAYIR =====
+            // Kodlaşdırma vərəqini göstərib-gizlədir
+            if (e.target.classList.contains('grid-toggle-btn')) {
+                const wrapper = e.target.nextElementSibling;
+                wrapper.style.display = (wrapper.style.display === 'none') ? 'block' : 'none';
+            }
+
+            // Baloncuqlara klikləyəndə işləyən məntiq
+            // admin-dashboard.js -> click listener içində bu bloku yeniləyin
+            if (e.target.classList.contains('grid-bubble')) {
+                const bubble = e.target;
+                const column = bubble.parentElement;
+                const container = column.parentElement.parentElement;
+                const display = container.querySelector('.grid-display');
+                const mainAnswerTextarea = container.closest('.form-group').querySelector('.correct-answer-open');
+
+                // Seçimi ləğv etmə və dəyişmə məntiqi
+                if (bubble.classList.contains('selected')) {
+                    bubble.classList.remove('selected');
+                } else {
+                    column.querySelectorAll('.grid-bubble').forEach(b => b.classList.remove('selected'));
+                    bubble.classList.add('selected');
+                }
+
+                // Yuxarıdakı xanada cavabı vergüllə yeniləyir
+                let answerParts = [];
+                container.querySelectorAll('.grid-column').forEach(col => {
+                    const selectedBubble = col.querySelector('.grid-bubble.selected');
+                    if (selectedBubble) {
+                        answerParts.push(selectedBubble.dataset.value);
+                    }
+                });
+                // Vergül məntiqi: Yalnız rəqəmlər arasında vergül qoyur
+                let finalAnswer = answerParts.join(' ');
+                display.value = finalAnswer;
+
+                // Əsas cavab xanasını da yeniləyir
+                const editor = tinymce.get(mainAnswerTextarea.id);
+                if (editor) {
+                    editor.setContent(finalAnswer);
+                } else {
+                    mainAnswerTextarea.value = finalAnswer;
+                }
+            }
+            // ===== YENİ KODLAŞDIRMA VƏRƏQİ ÜÇÜN ƏLAVƏ EDİLƏN HİSSƏ BİTİR =====
         });
-        
+
+        // DƏYİŞİKLİKLƏRİ İDARƏ EDƏN HİSSƏ
         questionsContainer.addEventListener('change', e => {
             if (e.target.classList.contains('question-subject')) {
                 const selectElement = e.target;
@@ -480,10 +822,11 @@ function renderSpecificFields(type, blockId) {
                 renderSpecificFields(e.target.value, e.target.dataset.blockId);
             }
         });
-        
+
+        // DAXİL ETMƏNİ İDARƏ EDƏN HİSSƏ
         questionsContainer.addEventListener('input', e => {
-             const matchingItem = e.target.closest('.matching-item');
-             if (matchingItem) {
+            const matchingItem = e.target.closest('.matching-item');
+            if (matchingItem) {
                 const blockId = e.target.closest('.question-block').id.split('-')[2];
                 updateMatchingAnswerUI(blockId);
             }
@@ -511,90 +854,103 @@ function renderSpecificFields(type, blockId) {
         });
     }
 
-    if (createExamForm) {
-        createExamForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            tinymce.triggerSave();
-            const formData = new FormData();
-            formData.append('title', document.getElementById('exam-title').value);
-            formData.append('examTypeId', document.getElementById('exam-type').value);
-            formData.append('classNameId', document.getElementById('class-name').value);
-            formData.append('duration', document.getElementById('exam-duration').value);
-            formData.append('price', document.getElementById('exam-price').value);
-            formData.append('video_url', document.getElementById('exam-video-url').value);
-            formData.append('publishImmediately', document.querySelector('input[name="publishStatus"]:checked').value === 'immediate');
-            formData.append('publishDate', document.getElementById('publish-date').value);
+    // admin-dashboard.js -> Köhnə "if (createExamForm)" blokunu bununla TAM ƏVƏZ EDİN
+if (createExamForm) {
+    createExamForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        tinymce.triggerSave(); // Redaktorlardakı mətni əsas xanalara köçürür
+        
+        const formData = new FormData();
+        formData.append('title', document.getElementById('exam-title')?.value || '');
+        formData.append('examTypeId', document.getElementById('exam-type')?.value || '');
+        formData.append('classNameId', document.getElementById('class-name')?.value || '');
+        formData.append('duration', document.getElementById('exam-duration')?.value || '');
+        formData.append('price', document.getElementById('exam-price')?.value || '0');
+        formData.append('video_url', document.getElementById('exam-video-url')?.value || '');
+        
+        const publishStatusInput = document.querySelector('input[name="publishStatus"]:checked');
+        formData.append('publishImmediately', publishStatusInput ? publishStatusInput.value === 'immediate' : 'true');
+        formData.append('publishDate', document.getElementById('publish-date')?.value || '');
 
-            const questionsData = [];
-            document.querySelectorAll('.question-block').forEach((block, index) => {
-                const minutes = block.querySelector('.time-input-minutes').value || 0;
-                const seconds = block.querySelector('.time-input-seconds').value || 0;
-                const totalSeconds = parseInt(minutes, 10) * 60 + parseInt(seconds, 10);
-                const commonData = {
-                    question_type: block.querySelector('.question-type-select').value,
-                    text: block.querySelector('.question-text').value,
-                    subject_id: block.querySelector('.question-subject')?.value,
-                    points: block.querySelector('.question-points')?.value,
-                    topic: block.querySelector('.question-topic')?.value,
-                    difficulty: block.querySelector('.question-difficulty')?.value,
-                    video_start_time: totalSeconds,
-                    options: {},
-                    correct_answer: {},
-                };
+        const questionsData = [];
+        document.querySelectorAll('.question-block').forEach((block, index) => {
+            const minutes = block.querySelector('.time-input-minutes')?.value || 0;
+            const seconds = block.querySelector('.time-input-seconds')?.value || 0;
+            const totalSeconds = parseInt(minutes, 10) * 60 + parseInt(seconds, 10);
+            
+            const commonData = {
+                question_type: block.querySelector('.question-type-select')?.value,
+                text: block.querySelector('.question-text')?.value,
+                subject_id: block.querySelector('.question-subject')?.value,
+                points: block.querySelector('.question-points')?.value,
+                topic: block.querySelector('.question-topic')?.value,
+                difficulty: block.querySelector('.question-difficulty')?.value,
+                video_start_time: totalSeconds,
+                options: {},
+                correct_answer: {},
+            };
 
-                const mainImageFile = block.querySelector('.question-image')?.files[0];
-                if (mainImageFile) { formData.append(`question_image_${index}`, mainImageFile); }
+            const mainImageFile = block.querySelector('.question-image')?.files[0];
+            if (mainImageFile) formData.append(`question_image_${index}`, mainImageFile);
 
-                const audioFile = block.querySelector('.question-audio')?.files[0];
-                if (audioFile) { formData.append(`audio_file_${index}`, audioFile); }
+            const audioFile = block.querySelector('.question-audio')?.files[0];
+            if (audioFile) formData.append(`audio_file_${index}`, audioFile);
 
-                if (commonData.question_type === 'closed') {
-                    const options = [];
-                    block.querySelectorAll('.option-block').forEach((optBlock, i) => {
-                        const variant = ['A', 'B', 'C', 'D', 'E'][i];
-                        const text = optBlock.querySelector('.option-text').value;
-                        options.push({ "variant": variant, "text": text, "image_path": null });
-                        const imageFile = optBlock.querySelector('.option-image')?.files[0];
-                        if (imageFile) { formData.append(`option_image_${index}_${variant}`, imageFile); }
-                    });
-                    commonData.options = options;
-                    commonData.correct_answer = block.querySelector('.correct-answer-closed').value;
-                } else if (commonData.question_type === 'open') {
-                    commonData.correct_answer = block.querySelector('.correct-answer-open')?.value || "";
-                } else if (commonData.question_type === 'situational') {
-                    const sub_questions = [];
-                    block.querySelectorAll('.sub-question-item').forEach(subItem => {
-                        sub_questions.push(subItem.querySelector('.sub-question-text').value);
-                    });
-                    commonData.options = { sub_questions };
-                } else if (commonData.question_type === 'matching') {
-                    const matchingData = collectMatchingData(block);
-                    commonData.options = matchingData.options;
-                    commonData.correct_answer = matchingData.correct_answer;
-                } else if (commonData.question_type === 'fast_tree') {
-                    const fastTreeData = collectFastTreeData(block);
-                    commonData.options = fastTreeData.options;
-                    commonData.correct_answer = fastTreeData.correct_answer;
-                }
-                questionsData.push(commonData);
-            });
-
-            formData.append('questions', JSON.stringify(questionsData));
-            fetch('/api/admin/exams', {
-                method: 'POST', credentials: 'include', body: formData
-            }).then(res => res.json().then(data => ({ ok: res.ok, data }))).then(({ ok, data }) => {
-                alert(data.message);
-                if (ok) {
-                    createExamForm.reset();
-                    questionsContainer.innerHTML = '';
-                    tinymce.remove();
-                    document.querySelector('.nav-item a[href="#exams"]').click();
-                }
-            }).catch(err => {
-                alert('Xəta baş verdi: ' + (err.message || 'Serverə qoşulmaq mümkün olmadı.'));
-            });
+            if (commonData.question_type === 'closed') {
+                const options = [];
+                block.querySelectorAll('.option-block').forEach((optBlock) => {
+                    const variant = optBlock.querySelector('.option-text')?.dataset.variant;
+                    const text = optBlock.querySelector('.option-text')?.value;
+                    options.push({ "variant": variant, "text": text, "image_path": null });
+                    const imageFile = optBlock.querySelector('.option-image')?.files[0];
+                    if (imageFile) formData.append(`option_image_${index}_${variant}`, imageFile);
+                });
+                commonData.options = options;
+                commonData.correct_answer = block.querySelector('.correct-answer-closed')?.value;
+            } else if (commonData.question_type === 'open') {
+                commonData.correct_answer = block.querySelector('.correct-answer-open')?.value || "";
+            } else if (commonData.question_type === 'situational') {
+                const sub_questions = Array.from(block.querySelectorAll('.sub-question-text')).map(input => input.value);
+                commonData.options = { sub_questions };
+            } else if (commonData.question_type === 'matching') {
+                const matchingData = collectMatchingData(block);
+                commonData.options = matchingData.options;
+                commonData.correct_answer = matchingData.correct_answer;
+            } else if (commonData.question_type === 'fast_tree') {
+                const fastTreeData = collectFastTreeData(block);
+                commonData.options = fastTreeData.options;
+                commonData.correct_answer = fastTreeData.correct_answer;
+            }
+            questionsData.push(commonData);
         });
-    }
+
+        formData.append('questions', JSON.stringify(questionsData));
+
+        // Göndərmədən əvvəl düyməni deaktiv edirik
+        const submitButton = document.getElementById('exam-submit-btn');
+        submitButton.disabled = true;
+        submitButton.textContent = 'Göndərilir...';
+
+        fetch('/api/admin/exams', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        }).then(res => res.json().then(data => ({ ok: res.ok, data }))).then(({ ok, data }) => {
+            alert(data.message);
+            if (ok) {
+                createExamForm.reset();
+                questionsContainer.innerHTML = '';
+                document.querySelector('.nav-item a[href="#exams"]').click();
+            }
+        }).catch(err => {
+            alert('Xəta baş verdi: ' + (err.message || 'Serverə qoşulmaq mümkün olmadı.'));
+        }).finally(() => {
+            // Proses bitdikdən sonra düyməni yenidən aktiv edirik
+            submitButton.disabled = false;
+            submitButton.textContent = 'Yadda Saxla';
+        });
+    });
+}
 
     if (questionsContainer) {
         questionsContainer.addEventListener('paste', (e) => {
@@ -629,7 +985,7 @@ function renderSpecificFields(type, blockId) {
             }
         });
     }
-    
+
     // Səhifə yüklənəndə ilkin funksiyaları çağırırıq
     loadExams();
     loadExamMetaData();
@@ -691,7 +1047,7 @@ function renderSpecificFields(type, blockId) {
             correct_answer: correct_answer
         };
     }
-    
+
     function loadDashboardLeaderboards() {
         const monthlyContainer = document.getElementById('monthly-leaderboard-admin');
         const yearlyContainer = document.getElementById('yearly-leaderboard-admin');
@@ -730,10 +1086,10 @@ function renderSpecificFields(type, blockId) {
     const studentModalContent = document.getElementById('student-details-content');
     const closeStudentModalBtn = document.getElementById('close-student-modal-btn');
 
-    if(closeStudentModalBtn) {
+    if (closeStudentModalBtn) {
         closeStudentModalBtn.onclick = () => { studentModal.style.display = 'none'; };
     }
-    if(studentModal){
+    if (studentModal) {
         window.addEventListener('click', (event) => {
             if (event.target == studentModal) {
                 studentModal.style.display = "none";

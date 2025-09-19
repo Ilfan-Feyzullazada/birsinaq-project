@@ -15,9 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const newCertName = document.getElementById('cert-name-new');
     const newCertScore = document.getElementById('cert-score-new');
     const newCertDate = document.getElementById('cert-date-new');
-    
+
     if (!submissionId) {
-        if(resultContainer) resultContainer.innerHTML = `<p style="color: red; text-align: center;">Nəticə ID-si tapılmadı!</p>`;
+        if (resultContainer) resultContainer.innerHTML = `<p style="color: red; text-align: center;">Nəticə ID-si tapılmadı!</p>`;
         return;
     }
 
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .then(data => {
             // 1. Ümumi məlumatları doldururuq (YENİ DİZAYN İLƏ)
-            if(examDetailsContainer) {
+            if (examDetailsContainer) {
                 examDetailsContainer.innerHTML = `
                 <div class="exam-details-grid">
                     <div class="detail-item">
@@ -67,10 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // 2. Statistika xanalarını doldururuq
-            if(finalScoreValue) finalScoreValue.textContent = data.stats?.final_score ?? 'N/A';
-            if(correctCount) correctCount.textContent = data.stats?.correct_count ?? 0;
-            if(incorrectCount) incorrectCount.textContent = data.stats?.incorrect_count ?? 0;
-            if(unansweredCount) unansweredCount.textContent = data.stats?.unanswered_count ?? 0;
+            if (finalScoreValue) finalScoreValue.textContent = data.stats?.final_score ?? 'N/A';
+            if (correctCount) correctCount.textContent = data.stats?.correct_count ?? 0;
+            if (incorrectCount) incorrectCount.textContent = data.stats?.incorrect_count ?? 0;
+            if (unansweredCount) unansweredCount.textContent = data.stats?.unanswered_count ?? 0;
 
             // 3. Detallı nəticə cədvəllərini yaradırıq (Sizin kodunuzda olan hissə)
             let resultsHTML = '';
@@ -87,43 +87,51 @@ document.addEventListener('DOMContentLoaded', () => {
                             <table class="result-table">
                                 <thead>
                                     <tr class="header-row">
-                                        <th>Sıra</th>
-                                        <th>Sual</th>
-                                        <th>Sizin Cavabınız</th>
-                                        <th>Düzgün Cavab</th>
-                                        <th>Sərf Olunan Vaxt</th>
-                                        <th>Mövzu</th>
-                                    </tr>
+    <th>Sıra</th>
+    <th>Sual</th>
+    <th>Sizin Cavabınız</th>
+    <th>Düzgün Cavab</th>
+    <th>Sərf Olunan Vaxt</th>
+    <th>Mövzu</th>
+    <th>Çətinlik</th> </tr>
                                 </thead>
                                 <tbody>`;
 
+                    // Yuxarıdakı köhnə bloku bununla TAM ƏVƏZ EDİN
                     subjectData.questions.forEach((q, index) => {
                         let rowClass = '';
                         let isCorrect = false;
 
-                        if (q.student_answer && typeof q.student_answer === 'string' && q.student_answer.startsWith('[')) {
+                        // Cavabları JSON-dan real obyektə çevirməyə çalışırıq
+                        if (q.student_answer && typeof q.student_answer === 'string' && (q.student_answer.startsWith('{') || q.student_answer.startsWith('['))) {
                             try { q.student_answer = JSON.parse(q.student_answer); } catch (e) { }
                         }
-                        
-                        if (Array.isArray(q.student_answer) && Array.isArray(q.correct_answer)) {
-                            const sortedStudentAnswer = JSON.stringify([...q.student_answer].sort());
-                            const sortedCorrectAnswer = JSON.stringify([...q.correct_answer].sort());
-                            isCorrect = sortedStudentAnswer === sortedCorrectAnswer;
-                        } else {
+
+                        // Mürəkkəb cavabların (uyğunluq, fast tree) yoxlanılması
+                        if (typeof q.student_answer === 'object' && q.student_answer !== null && typeof q.correct_answer === 'object' && q.correct_answer !== null) {
+                            const studentKeys = Object.keys(q.student_answer);
+                            const correctKeys = Object.keys(q.correct_answer);
+                            if (studentKeys.length === correctKeys.length) {
+                                isCorrect = studentKeys.every(key => q.student_answer[key] === q.correct_answer[key]);
+                            }
+                        } else { // Sadə cavabların yoxlanılması
                             isCorrect = String(q.student_answer).toLowerCase() === String(q.correct_answer).toLowerCase();
                         }
 
+                        // Sətirlərin rənglənməsi üçün siniflərin təyin edilməsi
                         if (q.status === 'pending_review') {
                             hasPendingQuestions = true;
                             rowClass = 'pending-answer';
-                        } else if (!q.student_answer || q.student_answer.toString().trim() === '' || q.student_answer.toString() === '[]') {
+                        } else if (!q.student_answer || Object.keys(q.student_answer).length === 0) {
                             rowClass = 'unanswered-row';
+                            isCorrect = false; // Cavab yoxdursa, düzgün deyil
                         } else if (isCorrect) {
                             rowClass = 'correct-answer';
                         } else {
                             rowClass = 'incorrect-answer';
                         }
-                        
+
+                        // Video izah üçün linkin hazırlanması
                         let questionTitleHTML = `${index + 1}`;
                         if (data.video_url && q.video_start_time) {
                             function getYouTubeID(url) {
@@ -137,6 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
 
+                        // Sərf olunan vaxtın formatlanması
                         const timeSpentMs = (data.time_spent && data.time_spent[q.question_id]) ? data.time_spent[q.question_id] : 0;
                         let formattedTime = '0 san';
                         if (timeSpentMs > 0) {
@@ -145,18 +154,37 @@ document.addEventListener('DOMContentLoaded', () => {
                             formattedTime = minutes > 0 ? `${minutes} dəq ${seconds} san` : `${seconds} san`;
                         }
 
+                        // Mövzu və Çətinliyin təyin edilməsi
                         const topic = q.topic || 'Təyin edilməyib';
+                        const difficulty = q.difficulty || 'Təyin edilməyib';
 
+                        // Cavabların göstərilməsi üçün formatlama
+                        let studentAnswerDisplay = 'Boş';
+                        if (q.student_answer) {
+                            if (typeof q.student_answer === 'object') {
+                                studentAnswerDisplay = Object.entries(q.student_answer).map(([key, value]) => `${key}-${value}`).join(', ');
+                            } else {
+                                studentAnswerDisplay = q.student_answer;
+                            }
+                        }
+
+                        let correctAnswerDisplay = q.correct_answer;
+                        if (typeof q.correct_answer === 'object' && q.correct_answer !== null) {
+                            correctAnswerDisplay = Object.entries(q.correct_answer).map(([key, value]) => `${key}-${value}`).join(', ');
+                        }
+
+                        // Cədvəl sətrinin HTML-ə əlavə edilməsi
                         resultsHTML += `
-                            <tr class="${rowClass}">
-                                <td>${questionTitleHTML}</td>
-                                <td>${q.question_text}</td>
-                                <td>${Array.isArray(q.student_answer) ? q.student_answer.join(', ') : (q.student_answer || 'Boş')}</td>
-                                <td>${q.status === 'pending_review' ? 'Yoxlanılır...' : (Array.isArray(q.correct_answer) ? q.correct_answer.join(', ') : q.correct_answer)}</td>
-                                <td>${formattedTime}</td>
-                                <td>${topic}</td>
-                            </tr>
-                        `;
+        <tr class="${rowClass}">
+            <td>${questionTitleHTML}</td>
+            <td>${q.question_text}</td>
+            <td>${studentAnswerDisplay}</td>
+            <td>${q.status === 'pending_review' ? 'Yoxlanılır...' : correctAnswerDisplay}</td>
+            <td>${formattedTime}</td>
+            <td>${topic}</td>
+            <td>${difficulty}</td>
+        </tr>
+    `;
                     });
                     resultsHTML += `</tbody></table></div>`;
                 });
@@ -166,16 +194,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 resultsHTML += `<div class="pending-notification" style="background-color: #fff3cd; border-left: 5px solid #ffeeba; padding: 15px; margin-top: 20px; border-radius: 5px;"><p><strong>Qeyd:</strong> Sarı rəngli sətirlər müəllim yoxlaması gözləyən cavablardır. Yekun nəticə müəllim yoxladıqdan sonra hesablanacaq.</p></div>`;
             }
 
-            if(resultContainer) resultContainer.innerHTML = resultsHTML;
+            if (resultContainer) resultContainer.innerHTML = resultsHTML;
 
             // 4. YENİ sertifikat şablonunu məlumatlarla doldururuq
             if (newCertName) newCertName.textContent = data.student_name || '[AD SOYAD]';
-            if (newCertScore) newCertScore.textContent = data.stats?.final_score ?? '[Bal]';
+            if (newCertScore) {
+                const score = data.stats?.final_score ?? 'X';
+                newCertScore.innerHTML = `<span>${score}</span><span class="score-label">bal</span>`;
+            }
+
             if (newCertDate) newCertDate.textContent = data.submission_date || '[Tarix]';
         })
         .catch(error => {
             console.error("Nəticə səhifəsində xəta:", error);
-            if(resultContainer) resultContainer.innerHTML = `<p style="color: red; text-align: center;">Xəta baş verdi: ${error.message}</p>`;
+            if (resultContainer) resultContainer.innerHTML = `<p style="color: red; text-align: center;">Xəta baş verdi: ${error.message}</p>`;
         });
 
 
@@ -187,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert("Sertifikat şablonu HTML-də tapılmadı! Zəhmət olmasa, 'result.html' faylını yoxlayın.");
                 return;
             }
-        
+
             const { jsPDF } = window.jspdf;
             const studentNameForFile = newCertName ? (newCertName.textContent || 'telebe') : 'telebe';
 

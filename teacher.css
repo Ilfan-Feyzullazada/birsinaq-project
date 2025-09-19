@@ -459,3 +459,23 @@ body::before {
     transform: rotate(-30deg) scale(1.5);
     z-index: -1;
 }
+
+
+.uploaded-images-container {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+}
+.uploaded-image {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    transition: transform 0.2s;
+}
+.uploaded-image:hover {
+    transform: scale(1.05);
+}

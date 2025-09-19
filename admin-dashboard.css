@@ -1179,3 +1179,64 @@ input:checked + .slider:before {
 .actions .affiliate-settings-btn:hover {
     background-color: #e0a800;
 }
+
+
+.filters-container{background-color:#fff;padding:20px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,.05);margin-bottom:20px;display:flex;align-items:flex-end;gap:20px}.filters-container .form-group{margin-bottom:0}.clear-btn{padding:12px 20px;background-color:#6c757d;color:#fff;border:none;border-radius:8px;cursor:pointer;transition:background-color .2s}.clear-btn:hover{background-color:#5a6268}
+
+/* Kodlaşdırma vərəqi üçün YENİ və TƏKMİLLƏŞDİRİLMİŞ stillər */
+.grid-toggle-wrapper { margin-top: 15px; }
+.grid-toggle-btn { padding: 8px 15px; border: 1px solid #007bff; background-color: #f8f9fa; color: #007bff; border-radius: 5px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+.grid-toggle-btn:hover { background-color: #007bff; color: white; }
+
+.grid-input-container {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    padding: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background-color: #fdfbff; /* Açıq fon */
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+}
+.grid-display {
+    width: 250px;
+    padding: 10px;
+    font-size: 1.5em;
+    font-weight: bold;
+    text-align: center;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    letter-spacing: 5px;
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #fff;
+}
+.grid-columns { display: flex; gap: 8px; }
+.grid-column { display: flex; flex-direction: column; gap: 8px; }
+
+.grid-bubble {
+    width: 30px;
+    height: 30px;
+    border: 1px solid #e0bcdc; /* Açıq çəhrayı çərçivə */
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: #8e44ad; /* Bənövşəyi rəqəm rəngi */
+    transition: all 0.2s;
+    background-color: #fff;
+}
+.grid-bubble:hover {
+    background-color: #f5eafb;
+    border-color: #c39bd3;
+}
+.grid-bubble.selected {
+    background-color: #9b59b6; /* Tünd bənövşəyi fon */
+    color: white;
+    border-color: #8e44ad;
+}

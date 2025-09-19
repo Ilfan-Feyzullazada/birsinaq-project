@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="az">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,8 +8,22 @@
     <link rel="stylesheet" href="index.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
+
 <body>
 
+    <div id="info-modal-overlay" class="modal-overlay">
+        <div id="info-modal" class="modal-content">
+            <button id="close-modal-btn" class="close-modal-btn">&times;</button>
+            <h2>Xoş gəlmisiniz, əziz BirSınaq istifadəçiləri! ✨</h2>
+            <ul class="modal-list">
+                <li>✅ Təbriklər! Artıq 25 sentyabra qədər bütün sınaq imtahanlarımız aktivdir!</li>
+                <li>✅ Qeydiyyatdan keçərək şəxsi kabinet və statistikanızı əldə edin.</li>
+                <li class="highlight">💯 Bütün yeni imtahanlar TAMAMİLƏ ÖDƏNİŞSİZDİR!</li>
+                <li>⏱️ Vaxt məhduddur — 25 sentyabr son tarixdir!</li>
+                <li>🚀 Gələcəyini bizimlə qur, özünü sınamaqdan çəkinmə!</li>
+            </ul>
+        </div>
+    </div>
     <header class="header">
         <div class="logo">
             <h1>BirSınaq</h1>
@@ -20,7 +35,15 @@
     </header>
 
     <main class="main-content">
-         
+    <div class="final-layout-container">
+
+        <div class="leaderboard-card-public">
+            <h3><i class="fas fa-calendar-day"></i> Ayın Ən Yaxşıları</h3>
+            <div class="leaderboard-list" id="monthly-leaderboard">
+                <p>Yüklənir...</p>
+            </div>
+        </div>
+
         <div class="card-container">
             <a href="exam.html" class="action-card">
                 <i class="fas fa-edit"></i>
@@ -33,12 +56,125 @@
                 <p>Layihəmizə dəstək olmaq üçün imtahan təşkilatçısı kimi qoşulun.</p>
             </a>
         </div>
-    </main>
-    
+
+        <div class="leaderboard-card-public">
+            <h3><i class="fas fa-calendar-alt"></i> İlin Ən Yaxşıları</h3>
+            <div class="leaderboard-list" id="yearly-leaderboard">
+                <p>Yüklənir...</p>
+            </div>
+        </div>
+        
+    </div>
+</main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const modalOverlay = document.getElementById('info-modal-overlay');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+
+            // Funksiya: Pəncərəni göstərmək
+            const openModal = () => {
+                if (modalOverlay) {
+                    modalOverlay.classList.add('active');
+                }
+            };
+
+            // Funksiya: Pəncərəni bağlamaq
+            const closeModal = () => {
+                if (modalOverlay) {
+                    modalOverlay.classList.remove('active');
+                    // İstifadəçinin pəncərəni bağladığını yadda saxlayırıq ki, bir daha açılmasın
+                    sessionStorage.setItem('infoModalClosed', 'true');
+                }
+            };
+
+            // Sayt açıldıqdan 1 saniyə sonra pəncərəni göstəririk (əgər daha əvvəl bağlanmayıbsa)
+            if (!sessionStorage.getItem('infoModalClosed')) {
+                setTimeout(openModal, 1000);
+            }
+
+            // 'x' düyməsinə basanda pəncərəni bağlayırıq
+            if (closeModalBtn) {
+                closeModalBtn.addEventListener('click', closeModal);
+            }
+
+            // Pəncərənin kənarındakı qara fona basanda bağlayırıq
+            if (modalOverlay) {
+                modalOverlay.addEventListener('click', (event) => {
+                    if (event.target === modalOverlay) {
+                        closeModal();
+                    }
+                });
+            }
+
+            // ===== LİDERLƏR LÖVHƏSİ ÜÇÜN YENİ KOD BAŞLAYIR =====
+            const monthlyContainer = document.getElementById('monthly-leaderboard');
+            const yearlyContainer = document.getElementById('yearly-leaderboard');
+
+            function loadLeaderboard(period, container) {
+                fetch(`/api/leaderboard?period=${period}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!container) return;
+                        if (data.length === 0) {
+                            container.innerHTML = '<p>Bu dövr üçün nəticə yoxdur.</p>';
+                            return;
+                        }
+                        
+                        let html = '';
+                        data.forEach(item => {
+                            let rankHTML = item.rank;
+                            if (item.rank === 1) rankHTML = '<i class="fas fa-medal gold"></i>';
+                            if (item.rank === 2) rankHTML = '<i class="fas fa-medal silver"></i>';
+                            if (item.rank === 3) rankHTML = '<i class="fas fa-medal bronze"></i>';
+
+                            html += `
+                                <div class="list-item">
+                                    <div class="rank">${rankHTML}</div>
+                                    <div class="name">${item.name}</div>
+                                    <div class="score">${item.total_score} bal</div>
+                                </div>
+                            `;
+                        });
+                        container.innerHTML = html;
+                    })
+                    .catch(err => {
+                        if (container) container.innerHTML = '<p>Nəticələri yükləmək mümkün olmadı.</p>';
+                    });
+            }
+
+            // Hər iki lövhəni yükləyirik
+            loadLeaderboard('month', monthlyContainer);
+            loadLeaderboard('year', yearlyContainer);
+            // ===== LİDERLƏR LÖVHƏSİ ÜÇÜN YENİ KOD BİTİR =====
+        });
 
 
-    <script src="main.js"></script>
+        // Sizin köhnə kodunuz (buna toxunulmayıb)
+        function loadStudentStats() {
+            const monthlyContainer = document.getElementById('monthly-stats-container');
+            const yearlyContainer = document.getElementById('yearly-stats-container');
 
-
+            fetch('/api/student/stats', { credentials: 'include' })
+                .then(res => {
+                    if (res.ok) return res.json();
+                    // Əgər istifadəçi daxil olmayıbsa, bloku gizlədirik
+                    const statsDashboard = document.getElementById('student-stats-dashboard');
+                    if (statsDashboard) {
+                        statsDashboard.style.display = 'none';
+                    }
+                    return Promise.reject('Not logged in');
+                })
+                .then(data => {
+                    renderStats(monthlyContainer, data.monthly);
+                    renderStats(yearlyContainer, data.yearly);
+                })
+                .catch(err => {
+                    console.log("Statistika yüklənə bilmədi:", err);
+                });
+        }
+    </script>
 </body>
+
 </html>
