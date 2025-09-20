@@ -5,8 +5,8 @@ import uuid
 import click
 import json
 from datetime import datetime
-from datetime import timedelta
 from collections import defaultdict
+from datetime import timedelta
 
 from flask import send_from_directory
 from flask import Flask, request, jsonify, session, send_from_directory
@@ -25,6 +25,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 # --- Tətbiqin Qurulması ---
 app = Flask(__name__)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 CORS(app, supports_credentials=True, origins=["http://127.0.0.1:5500", "http://127.0.0.1:5501"])
 
 # --- Konfiqurasiya ---
@@ -321,7 +322,7 @@ def admin_login():
     data = request.get_json()
     admin = Admin.query.filter_by(email=data.get('email')).first()
     if admin and bcrypt.check_password_hash(admin.password, data.get('password')):
-        login_user(admin, remember=True)
+        login_user(admin, remember=True, duration=timedelta(hours=24))
         return jsonify({'message': 'Admin girişi uğurludur!'})
     return jsonify({'message': 'E-poçt və ya şifrə yanlışdır'}), 401
 
@@ -747,7 +748,7 @@ def login():
     data = request.get_json()
     user = User.query.filter_by(email=data['email']).first()
     if user and bcrypt.check_password_hash(user.password, data['password']):
-        login_user(user, remember=True)
+        login_user(user, remember=True, duration=timedelta(hours=24))
 
         # ===========================================================================
         # YENİ ƏLAVƏ EDİLMİŞ BLOK: Qonaq imtahanlarını mövcud hesaba bağlayırıq
@@ -819,7 +820,7 @@ def teacher_login():
     data = request.get_json()
     teacher = Teacher.query.filter_by(email=data.get('email')).first()
     if teacher and bcrypt.check_password_hash(teacher.password, data.get('password')):
-        login_user(teacher, remember=True)
+        login_user(teacher, remember=True, duration=timedelta(hours=24))
         return jsonify({'message': 'Müəllim girişi uğurludur!'})
     return jsonify({'message': 'E-poçt və ya şifrə yanlışdır'}), 401
 
@@ -870,13 +871,13 @@ def organizer_login():
     # Əvvəlcə Kordinatorlar cədvəlində axtarırıq
     organizer = Organizer.query.filter_by(email=email).first()
     if organizer and bcrypt.check_password_hash(organizer.password, password):
-        login_user(organizer, remember=True)
+        login_user(organizer, remember=True, duration=timedelta(hours=24))
         return jsonify({'message': 'Giriş uğurludur!'})
 
     # Əgər Kordinator tapılmasa, Əlaqələndiricilər cədvəlində axtarırıq
     affiliate = Affiliate.query.filter_by(email=email).first()
     if affiliate and bcrypt.check_password_hash(affiliate.password, password):
-        login_user(affiliate, remember=True)
+        login_user(affiliate, remember=True, duration=timedelta(hours=24))
         return jsonify({'message': 'Giriş uğurludur!'})
 
     return jsonify({'message': 'E-poçt və ya şifrə yanlışdır'}), 401
