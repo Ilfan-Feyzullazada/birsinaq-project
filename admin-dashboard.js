@@ -178,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // admin-dashboard.js -> Köhnə loadOrganizersAndAffiliates funksiyasını bununla əvəz edin
     // admin-dashboard.js -> Köhnə loadOrganizersAndAffiliates funksiyasını bu YENİ versiya ilə əvəz edin
 
+    // admin-dashboard.js -> Köhnə loadOrganizersAndAffiliates funksiyasını bununla əvəz edin
     function loadOrganizersAndAffiliates() {
         const organizersTableBody = document.getElementById('organizers-table-body');
         const affiliatesTableBody = document.getElementById('affiliates-table-body');
@@ -195,27 +196,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (Array.isArray(organizers) && organizers.length > 0) {
                     organizers.forEach(org => {
                         const tr = document.createElement('tr');
-                        const status = org.can_invite_affiliates ? `<span style="color: green; font-weight: bold;">Kordinator</span>` : `<span>Təşkilatçı</span>`;
+                        const status_html = org.is_approved ? `<span style="color: green; font-weight: bold;">Aktiv</span>` : `<span style="color: orange; font-weight: bold;">Təsdiq Gözləyir</span>`;
+                        const approveButton = !org.is_approved ? `<button class="action-btn approve approve-btn" data-org-id="${org.id}" data-name="${org.name}"><i class="fas fa-check"></i> Təsdiq Et</button>` : '';
+
                         tr.innerHTML = `
                         <td>${org.name}</td>
                         <td>${org.email}<br><small>${org.contact || 'N/A'}</small></td>
                         <td>${org.bank_account || 'N/A'}</td>
                         <td>${(org.balance || 0).toFixed(2)}</td>
-                        <td>${status}</td>
+                        <td>${status_html}</td>
                         <td>${(org.commission_amount || 0).toFixed(2)}</td>
                         <td><strong>${org.registered_student_count}</strong> (${org.participated_student_count})</td>
-                        <td class="actions">
-                            <button class="edit-btn" data-org-id="${org.id}">Redaktə Et</button>
-                            <button class="affiliate-settings-btn" data-org-id="${org.id}">Ayarlar</button>
-                            <button class="reset-balance-btn" data-org-id="${org.id}" data-type="organizer" data-name="${org.name}">Sıfırla</button>
+                        <td>
+                            <div class="actions-container">
+                                ${approveButton}
+                                <button class="action-btn edit edit-btn" data-org-id="${org.id}"><i class="fas fa-pencil-alt"></i> Redaktə</button>
+                                <button class="action-btn settings affiliate-settings-btn" data-org-id="${org.id}"><i class="fas fa-cog"></i> Ayarlar</button>
+                                <button class="action-btn reset reset-balance-btn" data-org-id="${org.id}" data-type="organizer" data-name="${org.name}"><i class="fas fa-wallet"></i> Sıfırla</button>
+                                <button class="action-btn delete delete-btn" data-id="${org.id}" data-type="organizer" data-name="${org.name}"><i class="fas fa-trash-alt"></i> Sil</button>
+                            </div>
                         </td>`;
                         organizersTableBody.appendChild(tr);
                     });
                 } else {
                     organizersTableBody.innerHTML = '<tr><td colspan="8" style="text-align:center;">Heç bir kordinator qeydiyyatdan keçməyib.</td></tr>';
                 }
-            }).catch(err => {
-                organizersTableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; color: red;">${err.message}</td></tr>`;
             });
 
         // Əlaqələndiriciləri yükləyirik
@@ -236,17 +241,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${(aff.balance || 0).toFixed(2)}</td>
                         <td>${(aff.commission_rate || 0).toFixed(2)}</td>
                         <td><strong>${aff.registered_student_count}</strong> (${aff.participated_student_count})</td>
-                        <td class="actions">
-                            <button class="edit-commission-btn" data-aff-id="${aff.id}" data-current-rate="${aff.commission_rate}" data-aff-name="${aff.name}">Dəyiş</button>
-                            <button class="reset-balance-btn" data-aff-id="${aff.id}" data-type="affiliate" data-name="${aff.name}">Sıfırla</button>
+                        <td>
+                            <div class="actions-container">
+                                <button class="action-btn edit edit-commission-btn" data-aff-id="${aff.id}" data-current-rate="${aff.commission_rate}" data-aff-name="${aff.name}"><i class="fas fa-pencil-alt"></i> Dəyiş</button>
+                                <button class="action-btn reset reset-balance-btn" data-aff-id="${aff.id}" data-type="affiliate" data-name="${aff.name}"><i class="fas fa-wallet"></i> Sıfırla</button>
+                                <button class="action-btn delete delete-btn" data-id="${aff.id}" data-type="affiliate" data-name="${aff.name}"><i class="fas fa-trash-alt"></i> Sil</button>
+                            </div>
                         </td>`;
                         affiliatesTableBody.appendChild(tr);
                     });
                 } else {
                     affiliatesTableBody.innerHTML = '<tr><td colspan="7" style="text-align:center;">Heç bir əlaqələndirici tapılmadı.</td></tr>';
                 }
-            }).catch(err => {
-                affiliatesTableBody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: red;">${err.message}</td></tr>`;
             });
     }
 
@@ -326,6 +332,44 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetButton = e.target.closest('button');
             if (!targetButton) return;
 
+            // "Təsdiq Et" düyməsi üçün yeni məntiq
+            if (targetButton.classList.contains('approve-btn')) {
+                const orgId = targetButton.dataset.orgId;
+                const name = targetButton.dataset.name;
+                if (confirm(`'${name}' adlı kordinatoru təsdiqləmək istədiyinizə əminsiniz?`)) {
+                    fetch(`/api/admin/organizer/${orgId}/approve`, {
+                        method: 'POST',
+                        credentials: 'include'
+                    })
+                        .then(res => res.json())
+                        .then(result => {
+                            alert(result.message);
+                            loadOrganizersAndAffiliates(); // Cədvəli yenilə
+                        });
+                }
+                return; // Prosesi burada bitiririk
+            }
+
+
+            // admin-dashboard.js -> organizersSection.addEventListener içinə bu yeni if blokunu əlavə edin
+            if (targetButton.classList.contains('delete-btn')) {
+                const type = targetButton.dataset.type; // 'organizer' ya da 'affiliate'
+                const id = targetButton.dataset.id;
+                const name = targetButton.dataset.name;
+
+                if (confirm(`'${name}' adlı şəxsi və ona aid bütün məlumatları silmək istədiyinizə əminsiniz? Bu əməliyyat geri qaytarılmır.`)) {
+                    fetch(`/api/admin/${type}/${id}`, {
+                        method: 'DELETE',
+                        credentials: 'include'
+                    })
+                        .then(res => res.json())
+                        .then(result => {
+                            alert(result.message);
+                            loadOrganizersAndAffiliates(); // Cədvəli yenilə
+                        });
+                }
+            }
+
             // Əlaqələndiricinin komissiyasını dəyişmək üçün olan hissə
             if (targetButton.classList.contains('edit-commission-btn')) {
                 const affId = targetButton.dataset.affId;
@@ -346,14 +390,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             loadOrganizersAndAffiliates(); // Cədvəli yenilə
                         });
                 }
-                return; // Bu düyməyə aiddirsə, aşağıdakı kodlar işləməsin
+                return; // Prosesi burada bitiririk
             }
 
             // Kordinatorun məlumatlarını redaktə etmək və ya ayarlara baxmaq üçün olan hissə
             const orgId = targetButton.dataset.orgId;
             if (!orgId) return;
 
-            // Məlumatları HƏMİŞƏ yenilənmiş `allOrganizers` massivindən götürürük
             const organizerData = allOrganizers.find(org => org.id === parseInt(orgId));
             if (!organizerData) {
                 alert("Təşkilatçı məlumatları tapılmadı. Səhifəni yeniləyib təkrar yoxlayın.");
@@ -365,9 +408,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('edit-org-id').value = organizerData.id;
                 document.getElementById('edit-org-name').value = organizerData.name;
                 document.getElementById('edit-org-email').value = organizerData.email;
-                document.getElementById('edit-org-contact').value = organizerData.contact; // Artıq 'undefined' olmayacaq
-                document.getElementById('edit-org-bank').value = organizerData.bank_account; // Artıq 'undefined' olmayacaq
-                document.getElementById('edit-org-commission').value = organizerData.commission_amount; // Dəyişən qiymət burada görünəcək
+                document.getElementById('edit-org-contact').value = organizerData.contact;
+                document.getElementById('edit-org-bank').value = organizerData.bank_account;
+                document.getElementById('edit-org-commission').value = organizerData.commission_amount;
                 if (modal) modal.style.display = 'block';
             }
 
@@ -855,102 +898,102 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // admin-dashboard.js -> Köhnə "if (createExamForm)" blokunu bununla TAM ƏVƏZ EDİN
-if (createExamForm) {
-    createExamForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        tinymce.triggerSave(); // Redaktorlardakı mətni əsas xanalara köçürür
-        
-        const formData = new FormData();
-        formData.append('title', document.getElementById('exam-title')?.value || '');
-        formData.append('examTypeId', document.getElementById('exam-type')?.value || '');
-        formData.append('classNameId', document.getElementById('class-name')?.value || '');
-        formData.append('duration', document.getElementById('exam-duration')?.value || '');
-        formData.append('price', document.getElementById('exam-price')?.value || '0');
-        formData.append('video_url', document.getElementById('exam-video-url')?.value || '');
-        
-        const publishStatusInput = document.querySelector('input[name="publishStatus"]:checked');
-        formData.append('publishImmediately', publishStatusInput ? publishStatusInput.value === 'immediate' : 'true');
-        formData.append('publishDate', document.getElementById('publish-date')?.value || '');
+    if (createExamForm) {
+        createExamForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            tinymce.triggerSave(); // Redaktorlardakı mətni əsas xanalara köçürür
 
-        const questionsData = [];
-        document.querySelectorAll('.question-block').forEach((block, index) => {
-            const minutes = block.querySelector('.time-input-minutes')?.value || 0;
-            const seconds = block.querySelector('.time-input-seconds')?.value || 0;
-            const totalSeconds = parseInt(minutes, 10) * 60 + parseInt(seconds, 10);
-            
-            const commonData = {
-                question_type: block.querySelector('.question-type-select')?.value,
-                text: block.querySelector('.question-text')?.value,
-                subject_id: block.querySelector('.question-subject')?.value,
-                points: block.querySelector('.question-points')?.value,
-                topic: block.querySelector('.question-topic')?.value,
-                difficulty: block.querySelector('.question-difficulty')?.value,
-                video_start_time: totalSeconds,
-                options: {},
-                correct_answer: {},
-            };
+            const formData = new FormData();
+            formData.append('title', document.getElementById('exam-title')?.value || '');
+            formData.append('examTypeId', document.getElementById('exam-type')?.value || '');
+            formData.append('classNameId', document.getElementById('class-name')?.value || '');
+            formData.append('duration', document.getElementById('exam-duration')?.value || '');
+            formData.append('price', document.getElementById('exam-price')?.value || '0');
+            formData.append('video_url', document.getElementById('exam-video-url')?.value || '');
 
-            const mainImageFile = block.querySelector('.question-image')?.files[0];
-            if (mainImageFile) formData.append(`question_image_${index}`, mainImageFile);
+            const publishStatusInput = document.querySelector('input[name="publishStatus"]:checked');
+            formData.append('publishImmediately', publishStatusInput ? publishStatusInput.value === 'immediate' : 'true');
+            formData.append('publishDate', document.getElementById('publish-date')?.value || '');
 
-            const audioFile = block.querySelector('.question-audio')?.files[0];
-            if (audioFile) formData.append(`audio_file_${index}`, audioFile);
+            const questionsData = [];
+            document.querySelectorAll('.question-block').forEach((block, index) => {
+                const minutes = block.querySelector('.time-input-minutes')?.value || 0;
+                const seconds = block.querySelector('.time-input-seconds')?.value || 0;
+                const totalSeconds = parseInt(minutes, 10) * 60 + parseInt(seconds, 10);
 
-            if (commonData.question_type === 'closed') {
-                const options = [];
-                block.querySelectorAll('.option-block').forEach((optBlock) => {
-                    const variant = optBlock.querySelector('.option-text')?.dataset.variant;
-                    const text = optBlock.querySelector('.option-text')?.value;
-                    options.push({ "variant": variant, "text": text, "image_path": null });
-                    const imageFile = optBlock.querySelector('.option-image')?.files[0];
-                    if (imageFile) formData.append(`option_image_${index}_${variant}`, imageFile);
-                });
-                commonData.options = options;
-                commonData.correct_answer = block.querySelector('.correct-answer-closed')?.value;
-            } else if (commonData.question_type === 'open') {
-                commonData.correct_answer = block.querySelector('.correct-answer-open')?.value || "";
-            } else if (commonData.question_type === 'situational') {
-                const sub_questions = Array.from(block.querySelectorAll('.sub-question-text')).map(input => input.value);
-                commonData.options = { sub_questions };
-            } else if (commonData.question_type === 'matching') {
-                const matchingData = collectMatchingData(block);
-                commonData.options = matchingData.options;
-                commonData.correct_answer = matchingData.correct_answer;
-            } else if (commonData.question_type === 'fast_tree') {
-                const fastTreeData = collectFastTreeData(block);
-                commonData.options = fastTreeData.options;
-                commonData.correct_answer = fastTreeData.correct_answer;
-            }
-            questionsData.push(commonData);
+                const commonData = {
+                    question_type: block.querySelector('.question-type-select')?.value,
+                    text: block.querySelector('.question-text')?.value,
+                    subject_id: block.querySelector('.question-subject')?.value,
+                    points: block.querySelector('.question-points')?.value,
+                    topic: block.querySelector('.question-topic')?.value,
+                    difficulty: block.querySelector('.question-difficulty')?.value,
+                    video_start_time: totalSeconds,
+                    options: {},
+                    correct_answer: {},
+                };
+
+                const mainImageFile = block.querySelector('.question-image')?.files[0];
+                if (mainImageFile) formData.append(`question_image_${index}`, mainImageFile);
+
+                const audioFile = block.querySelector('.question-audio')?.files[0];
+                if (audioFile) formData.append(`audio_file_${index}`, audioFile);
+
+                if (commonData.question_type === 'closed') {
+                    const options = [];
+                    block.querySelectorAll('.option-block').forEach((optBlock) => {
+                        const variant = optBlock.querySelector('.option-text')?.dataset.variant;
+                        const text = optBlock.querySelector('.option-text')?.value;
+                        options.push({ "variant": variant, "text": text, "image_path": null });
+                        const imageFile = optBlock.querySelector('.option-image')?.files[0];
+                        if (imageFile) formData.append(`option_image_${index}_${variant}`, imageFile);
+                    });
+                    commonData.options = options;
+                    commonData.correct_answer = block.querySelector('.correct-answer-closed')?.value;
+                } else if (commonData.question_type === 'open') {
+                    commonData.correct_answer = block.querySelector('.correct-answer-open')?.value || "";
+                } else if (commonData.question_type === 'situational') {
+                    const sub_questions = Array.from(block.querySelectorAll('.sub-question-text')).map(input => input.value);
+                    commonData.options = { sub_questions };
+                } else if (commonData.question_type === 'matching') {
+                    const matchingData = collectMatchingData(block);
+                    commonData.options = matchingData.options;
+                    commonData.correct_answer = matchingData.correct_answer;
+                } else if (commonData.question_type === 'fast_tree') {
+                    const fastTreeData = collectFastTreeData(block);
+                    commonData.options = fastTreeData.options;
+                    commonData.correct_answer = fastTreeData.correct_answer;
+                }
+                questionsData.push(commonData);
+            });
+
+            formData.append('questions', JSON.stringify(questionsData));
+
+            // Göndərmədən əvvəl düyməni deaktiv edirik
+            const submitButton = document.getElementById('exam-submit-btn');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Göndərilir...';
+
+            fetch('/api/admin/exams', {
+                method: 'POST',
+                credentials: 'include',
+                body: formData
+            }).then(res => res.json().then(data => ({ ok: res.ok, data }))).then(({ ok, data }) => {
+                alert(data.message);
+                if (ok) {
+                    createExamForm.reset();
+                    questionsContainer.innerHTML = '';
+                    document.querySelector('.nav-item a[href="#exams"]').click();
+                }
+            }).catch(err => {
+                alert('Xəta baş verdi: ' + (err.message || 'Serverə qoşulmaq mümkün olmadı.'));
+            }).finally(() => {
+                // Proses bitdikdən sonra düyməni yenidən aktiv edirik
+                submitButton.disabled = false;
+                submitButton.textContent = 'Yadda Saxla';
+            });
         });
-
-        formData.append('questions', JSON.stringify(questionsData));
-
-        // Göndərmədən əvvəl düyməni deaktiv edirik
-        const submitButton = document.getElementById('exam-submit-btn');
-        submitButton.disabled = true;
-        submitButton.textContent = 'Göndərilir...';
-
-        fetch('/api/admin/exams', {
-            method: 'POST',
-            credentials: 'include',
-            body: formData
-        }).then(res => res.json().then(data => ({ ok: res.ok, data }))).then(({ ok, data }) => {
-            alert(data.message);
-            if (ok) {
-                createExamForm.reset();
-                questionsContainer.innerHTML = '';
-                document.querySelector('.nav-item a[href="#exams"]').click();
-            }
-        }).catch(err => {
-            alert('Xəta baş verdi: ' + (err.message || 'Serverə qoşulmaq mümkün olmadı.'));
-        }).finally(() => {
-            // Proses bitdikdən sonra düyməni yenidən aktiv edirik
-            submitButton.disabled = false;
-            submitButton.textContent = 'Yadda Saxla';
-        });
-    });
-}
+    }
 
     if (questionsContainer) {
         questionsContainer.addEventListener('paste', (e) => {

@@ -11,17 +11,133 @@
 
 <body>
 
+    <style>
+        /* Yeni modal pəncərə üçün stillər */
+        .modal-content .modal-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-content .modal-header h2 {
+            margin: 0;
+            font-size: 1.8rem;
+            color: #2c3e50;
+        }
+
+        .modal-content .modal-header h3 {
+            margin: 5px 0 0 0;
+            font-size: 1.1rem;
+            color: #4a90e2;
+            font-weight: 600;
+        }
+
+        .modal-content hr.modal-divider {
+            border: 0;
+            border-top: 1px solid #eee;
+            margin: 25px 0;
+        }
+
+        .modal-list-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+
+        .modal-list-item i {
+            margin-top: 5px;
+            margin-right: 15px;
+            color: #3498db;
+            width: 20px;
+            text-align: center;
+        }
+
+        .modal-list-item p {
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .modal-list-item p strong {
+            color: #34495e;
+        }
+
+        .highlight-box {
+            background-color: #e8f4fd;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .highlight-box p {
+            font-weight: 600;
+            margin: 0;
+            font-size: 1.1rem;
+        }
+    </style>
+
     <div id="info-modal-overlay" class="modal-overlay">
         <div id="info-modal" class="modal-content">
             <button id="close-modal-btn" class="close-modal-btn">&times;</button>
-            <h2>Xoş gəlmisiniz, əziz BirSınaq istifadəçiləri! ✨</h2>
-            <ul class="modal-list">
-                <li>✅ Təbriklər! Artıq 25 sentyabra qədər bütün sınaq imtahanlarımız aktivdir!</li>
-                <li>✅ Qeydiyyatdan keçərək şəxsi kabinet və statistikanızı əldə edin.</li>
-                <li class="highlight">💯 Bütün yeni imtahanlar TAMAMİLƏ ÖDƏNİŞSİZDİR!</li>
-                <li>⏱️ Vaxt məhduddur — 25 sentyabr son tarixdir!</li>
-                <li>🚀 Gələcəyini bizimlə qur, özünü sınamaqdan çəkinmə!</li>
-            </ul>
+
+            <div class="modal-header">
+                <h2>💰 2.000 AZN qazanc şansı!</h2>
+            </div>
+
+            <div class="modal-list-item">
+                <i class="fas fa-question-circle"></i>
+                <p><strong>Keyfiyyətli Suallar</strong> – Biliklərinizi dərinliklə yoxlamaq üçün xüsusi hazırlanmış
+                    testlər.</p>
+            </div>
+            <div class="modal-list-item">
+                <i class="fas fa-book-open"></i>
+                <p><strong>Mövzu Analizi</strong> – Hər sualın aid olduğu mövzunu görün və çətinlik çəkdiyiniz sahələri
+                    asanlıqla müəyyənləşdirin.</p>
+            </div>
+            <div class="modal-list-item">
+                <i class="fas fa-bolt"></i>
+                <p><strong>Çətinlik Səviyyəsi</strong> – Sualların çətinlik dərəcəsinə baxaraq öz bilik səviyyənizi
+                    qiymətləndirin.</p>
+            </div>
+            <div class="modal-list-item">
+                <i class="fas fa-clock"></i>
+                <p><strong>Vaxtın İdarə Edilməsi</strong> – Hər suala sərf etdiyiniz vaxtı izləyin və hansı mövzu və
+                    çətinlik səviyyəsinin sizdən daha çox vaxt tələb etdiyini öyrənin.</p>
+            </div>
+            <div class="modal-list-item">
+                <i class="fas fa-video"></i>
+                <p><strong>Ətraflı İzahlar</strong> – Səhv cavablarınızı video izahlarla izləyin və bilik boşluqlarınızı
+                    asanlıqla tamamlayın.</p>
+            </div>
+
+            <hr class="modal-divider">
+
+            <div class="modal-header">
+                <h3>💼 İmtahan Koordinatoru Olun!</h3>
+            </div>
+
+            <div class="modal-list-item">
+                <i class="fas fa-share-alt"></i>
+                <p><strong>Linkinizi paylaşın</strong> – Qazanc əldə edin!</p>
+            </div>
+            <div class="modal-list-item">
+                <i class="fas fa-check-circle"></i>
+                <p>Dəvət etdiyiniz tələbə ödəniş etdikcə, pul birbaşa balansınıza düşür.</p>
+            </div>
+            <div class="modal-list-item">
+                <i class="fas fa-sitemap"></i>
+                <p><strong>Öz şəbəkənizi qurun</strong> – əlaqələndiricilər qazandıqca siz də qazanırsınız.</p>
+            </div>
+            <div class="modal-list-item">
+                <i class="fas fa-chart-line"></i>
+                <p>Bütün prosesi şəxsi kabinetdən izləyin.</p>
+            </div>
+
+            <div class="highlight-box">
+                <p>🚀 İndi qoşulun və gəlirinizi artırın!</p>
+            </div>
+
         </div>
     </div>
     <header class="header">
@@ -35,37 +151,37 @@
     </header>
 
     <main class="main-content">
-    <div class="final-layout-container">
+        <div class="final-layout-container">
 
-        <div class="leaderboard-card-public">
-            <h3><i class="fas fa-calendar-day"></i> Ayın Qalibi 100 AZN</h3>
-            <div class="leaderboard-list" id="monthly-leaderboard">
-                <p>Yüklənir...</p>
+            <div class="leaderboard-card-public">
+                <h3><i class="fas fa-calendar-day"></i> Ayın Qalibi 100 AZN</h3>
+                <div class="leaderboard-list" id="monthly-leaderboard">
+                    <p>Yüklənir...</p>
+                </div>
             </div>
-        </div>
 
-        <div class="card-container">
-            <a href="exam.html" class="action-card">
-                <i class="fas fa-edit"></i>
-                <h2>Sınaq İmtahanında İştirak Et</h2>
-                <p>İnkişafın Tək Yolu</p>
-            </a>
-            <a href="organizer.html" class="action-card secondary">
-                <i class="fas fa-users-cog"></i>
-                <h2>İmtahan Təşkilatçısı Ol</h2>
-                <p>Qazanc Əldə Etmək Üçün Ən Doğrusu</p>
-            </a>
-        </div>
-
-        <div class="leaderboard-card-public">
-            <h3><i class="fas fa-calendar-alt"></i> İlin qalibi 1000 AZN</h3>
-            <div class="leaderboard-list" id="yearly-leaderboard">
-                <p>Yüklənir...</p>
+            <div class="card-container">
+                <a href="exam.html" class="action-card">
+                    <i class="fas fa-edit"></i>
+                    <h2>Sınaq İmtahanında İştirak Et</h2>
+                    <p>İnkişafın Tək Yolu</p>
+                </a>
+                <a href="organizer.html" class="action-card secondary">
+                    <i class="fas fa-users-cog"></i>
+                    <h2>İmtahan Təşkilatçısı Ol</h2>
+                    <p>Qazanc Əldə Etmək Üçün Ən Doğrusu</p>
+                </a>
             </div>
+
+            <div class="leaderboard-card-public">
+                <h3><i class="fas fa-calendar-alt"></i> İlin qalibi 1000 AZN</h3>
+                <div class="leaderboard-list" id="yearly-leaderboard">
+                    <p>Yüklənir...</p>
+                </div>
+            </div>
+
         </div>
-        
-    </div>
-</main>
+    </main>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -121,7 +237,7 @@
                             container.innerHTML = '<p>Bu dövr üçün nəticə yoxdur.</p>';
                             return;
                         }
-                        
+
                         let html = '';
                         data.forEach(item => {
                             let rankHTML = item.rank;

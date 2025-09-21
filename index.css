@@ -1,5 +1,5 @@
 /* index.css */
-/* BU YEKUN KODU BÜTÜN CSS FAYLLARINDAKI KÖHNƏ KODLA ƏVƏZ EDİN */
+/* SİZİN KODUNUZ ƏSASINDA EDİLMİŞ SON DÜZƏLİŞLƏRLƏ TAM VERSİYA */
 
 html {
     overflow-x: hidden;
@@ -100,7 +100,7 @@ body::before {
 .card-container {
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 20px; /* DÜZƏLİŞ: Düymələr arasındakı boşluğu bir az azaltdıq */
     text-align: center;
 }
 
@@ -116,9 +116,13 @@ body::before {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
+/* ===== "TƏŞKİLATÇI OL" DÜYMƏSİ ÜÇÜN XÜSUSİ DƏYİŞİKLİK ===== */
 .action-card.secondary {
+    padding: 15px 40px;     /* Yuxarı/aşağı boşluğu azaldaraq nazikləşdiririk */
     background-color: rgba(248, 249, 250, 0.9);
-    /* Yarım-şəffaf fon */
+    margin-top: 40px;       /* DÜZƏLİŞ: Yuxarıdakı düymədən daha çox aşağı salmaq üçün */
+    width: 380px;           /* DÜZƏLİŞ: Bir az daha uzun olması üçün */
+    margin-left: -15px;     /* Mərkəzdə qalması üçün kiçik düzəliş */
 }
 
 .action-card i {
@@ -128,6 +132,7 @@ body::before {
 }
 
 .action-card.secondary i {
+    font-size: 28px;
     color: #6c757d;
 }
 
@@ -137,10 +142,19 @@ body::before {
     font-weight: bold;
 }
 
+.action-card.secondary h2 {
+    font-size: 17px;
+    margin-bottom: 5px;
+}
+
 .action-card p {
     margin: 0;
     font-size: 16px;
     line-height: 1.5;
+}
+
+.action-card.secondary p {
+    font-size: 13px; /* DÜZƏLİŞ: Mətni kiçiltdik */
 }
 
 .action-card:hover {
@@ -263,13 +277,6 @@ body::before {
     max-width: 1500px;
     /* Maksimum eni bir az da artırdıq */
     align-items: center;
-}
-
-/* Mərkəzdəki düymələrin konteyneri */
-.card-container {
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
 }
 
 /* Sol və Sağ reytinq cədvəlləri */

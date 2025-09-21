@@ -191,18 +191,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     let subQuestionsHTML = '';
                     if (item.sub_questions) {
                         item.sub_questions.forEach(sub_q => {
+                            // exam-test.js -> renderExam funksiyasında, if(item.isSituational) blokunun içini dəyişin
+
+                            // Köhnə subQuestionsHTML += ... sətrini tapıb, aşağıdakı kodla əvəz edin
                             subQuestionsHTML += `
-                        <div class="sub-question" data-sub-question-id="${sub_q.id}">
-                            <p>${sub_q.text}</p>
-                            <div class="solution-upload-container">
-                                <p class="upload-instructions">💡 Həllinizi vərəqdə yazıb şəklini çəkərək yükləyin. (Maks. 2 şəkil)</p>
-                                <div class="image-previews" id="previews-${sub_q.id}"></div>
-                                <label class="upload-btn-label">
-                                    <i class="fas fa-camera"></i> Şəkil Yüklə
-                                    <input type="file" class="solution-image-input" data-target-preview="previews-${sub_q.id}" accept="image/jpeg, image/png, image/jpg" multiple>
-                                </label>
-                            </div>
-                        </div>`;
+    <div class="sub-question" data-sub-question-id="${sub_q.id}">
+        <p class="question-text">${sub_q.text}</p>
+
+        <div class="written-answer-container">
+            <textarea id="text-answer-${sub_q.id}" class="tinymce-student-editor"></textarea>
+        </div>
+
+        <div class="solution-upload-container">
+            <p class="upload-instructions">💡 Və ya həllinizi vərəqdə yazıb şəklini çəkərək yükləyin. (Maks. 2 şəkil)</p>
+            <div class="image-previews" id="previews-${sub_q.id}"></div>
+            <label class="upload-btn-label">
+                <i class="fas fa-camera"></i> Şəkil Yüklə
+                <input type="file" class="solution-image-input" data-target-preview="previews-${sub_q.id}" accept="image/jpeg, image/png, image/jpg" multiple>
+            </label>
+        </div>
+    </div>
+`;
                         });
                     }
                     questionWrapper.innerHTML = `<div class="situational-block"><h3>Situasiya (Sual ${overallQuestionCounter})</h3>${audioPlayerHTML}<p class="main-text">${item.main_text}</p>${item.image_path ? `<img src="/uploads/${item.image_path}" alt="Situasiya şəkli">` : ''}<hr>${subQuestionsHTML}</div>`;
@@ -267,6 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 questionNumbersContainer.appendChild(numBtn);
             });
         }
+        // exam-test.js -> renderExam funksiyasının sonuna (if(firstQuestion) sətrindən əvvəl) əlavə edin
         tinymce.init({
             selector: '.tinymce-student-editor',
             plugins: 'lists charmap',
@@ -274,8 +284,10 @@ document.addEventListener('DOMContentLoaded', () => {
             height: 200,
             menubar: false,
             setup: function (editor) {
+                // Redaktorda hər hansı bir dəyişiklik olanda cavabın qeyd olunmasını təmin edir
                 editor.on('change', function () {
                     tinymce.triggerSave();
+                    handleAnswerChange(editor.getElement());
                 });
             }
         });
@@ -449,6 +461,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     textAnswers[questionId] = {};
                 }
                 textAnswers[questionId][subId] = (activeButton.dataset.value === 'True') ? 'A' : 'B';
+            }
+        });
+
+
+        // Situasiya suallarının YAZILI cavablarını toplayırıq
+        questionsBlock.querySelectorAll('.tinymce-student-editor').forEach(textarea => {
+            const subQuestion = textarea.closest('.sub-question');
+            if (subQuestion) {
+                const subQuestionId = subQuestion.dataset.subQuestionId;
+                if (textarea.value.trim() !== '') {
+                    // Cavabları düzgün formatda yığırıq
+                    if (!textAnswers[subQuestionId]) {
+                        textAnswers[subQuestionId] = {};
+                    }
+                    textAnswers[subQuestionId].text = textarea.value;
+                }
             }
         });
 

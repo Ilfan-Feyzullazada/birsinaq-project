@@ -72,6 +72,7 @@ class User(db.Model, UserMixin):
 
     def get_id(self): return f"user-{self.id}"
 
+# app.py -> Köhnə Organizer class-ını bununla əvəz edin
 class Organizer(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -86,15 +87,14 @@ class Organizer(db.Model, UserMixin):
     affiliate_invite_limit = db.Column(db.Integer, default=0, nullable=False)
     affiliate_invite_code = db.Column(db.String(12), unique=True, nullable=True)
     affiliate_commission = db.Column(db.Float, default=1.0, nullable=False)
+    is_approved = db.Column(db.Boolean, default=False, nullable=False) # <<< YENİ SÜTUN
 
     registered_students = db.relationship('User', backref='organizer', lazy=True)
+    affiliates = db.relationship('Affiliate', back_populates='parent_organizer', lazy=True)
+
     def get_id(self): return f"organizer-{self.id}"
     
     
-    
-    # Bu yeni klassı app.py-a əlavə edin
-# app.py -> Köhnə Affiliate class-ını bununla əvəz edin
-# app.py -> Köhnə Affiliate class-ını bununla əvəz edin
 # app.py -> Köhnə Affiliate class-ını bununla tam əvəz edin
 class Affiliate(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -107,7 +107,7 @@ class Affiliate(db.Model, UserMixin):
     balance = db.Column(db.Float, nullable=False, default=0.0)
     commission_rate = db.Column(db.Float, nullable=False, default=2.0)
     parent_organizer_id = db.Column(db.Integer, db.ForeignKey('organizer.id'), nullable=False)
-    parent_organizer = db.relationship('Organizer', backref='affiliates')
+    parent_organizer = db.relationship('Organizer', back_populates='affiliates')
     registered_students = db.relationship('User', backref='affiliate', lazy=True)
 
     # DÜZƏLİŞ: Bu metod class-ın içində olmalıdır
@@ -868,13 +868,15 @@ def organizer_login():
     email = data.get('email')
     password = data.get('password')
 
-    # Əvvəlcə Kordinatorlar cədvəlində axtarırıq
     organizer = Organizer.query.filter_by(email=email).first()
     if organizer and bcrypt.check_password_hash(organizer.password, password):
+        # YENİ YOXLAMA
+        if not organizer.is_approved:
+            return jsonify({'message': 'Hesabınız hələ admin tərəfindən təsdiqlənməyib.'}), 403
+        
         login_user(organizer, remember=True, duration=timedelta(hours=24))
         return jsonify({'message': 'Giriş uğurludur!'})
 
-    # Əgər Kordinator tapılmasa, Əlaqələndiricilər cədvəlində axtarırıq
     affiliate = Affiliate.query.filter_by(email=email).first()
     if affiliate and bcrypt.check_password_hash(affiliate.password, password):
         login_user(affiliate, remember=True, duration=timedelta(hours=24))
@@ -1090,30 +1092,31 @@ def get_submission_result(submission_id):
 @login_required
 def get_organizers_with_stats():
     if not isinstance(current_user, Admin): return jsonify({'message': 'Yetkiniz yoxdur'}), 403
-    
-    organizers_query = db.session.query(
-        Organizer,
-        func.count(func.distinct(User.id)).label('registered_count'),
-        func.count(func.distinct(Submission.user_id)).label('participated_count')
-    ).outerjoin(User, Organizer.id == User.organizer_id)\
-     .outerjoin(Submission, User.id == Submission.user_id)\
-     .group_by(Organizer.id).all()
-    
+
+    # Tələbə saylarını əvvəlcədən səmərəli şəkildə hesablamaq üçün alt-sorğular
+    registered_subquery = db.session.query(
+        User.organizer_id, func.count(User.id).label('registered_count')
+    ).filter(User.organizer_id.isnot(None)).group_by(User.organizer_id).subquery()
+
+    participated_subquery = db.session.query(
+        User.organizer_id, func.count(func.distinct(User.id)).label('participated_count')
+    ).join(Submission, User.id == Submission.user_id).filter(User.organizer_id.isnot(None)).group_by(User.organizer_id).subquery()
+
+    organizers = db.session.query(
+        Organizer, registered_subquery.c.registered_count, participated_subquery.c.participated_count
+    ).outerjoin(registered_subquery, Organizer.id == registered_subquery.c.organizer_id)\
+     .outerjoin(participated_subquery, Organizer.id == participated_subquery.c.organizer_id).all()
+
     result = [{
-        'id': org.id, 
-        'name': org.name, 
-        'email': org.email, 
-        'contact': org.contact,                       # BU SƏTİRLƏR ƏSASDIR
-        'bank_account': org.bank_account,             # BU SƏTİRLƏR ƏSASDIR
-        'commission_amount': org.commission_amount, # BU SƏTİRLƏR ƏSASDIR
-        'balance': org.balance,
-        'can_invite_affiliates': org.can_invite_affiliates,
-        'affiliate_invite_limit': org.affiliate_invite_limit,
+        'id': org.id, 'name': org.name, 'email': org.email, 'contact': org.contact,
+        'bank_account': org.bank_account, 'commission_amount': org.commission_amount,
+        'balance': org.balance, 'can_invite_affiliates': org.can_invite_affiliates,
+        'is_approved': org.is_approved, 'affiliate_invite_limit': org.affiliate_invite_limit,
         'affiliate_commission': org.affiliate_commission,
-        'registered_student_count': registered_count,
-        'participated_student_count': participated_count
-    } for org, registered_count, participated_count in organizers_query]
-    
+        'registered_student_count': registered_count or 0,
+        'participated_student_count': participated_count or 0
+    } for org, registered_count, participated_count in organizers]
+
     return jsonify(result)
 
 
@@ -1859,25 +1862,27 @@ def organizer_reset_affiliate_balance(affiliate_id):
 def get_affiliates_with_stats():
     if not isinstance(current_user, Admin): return jsonify({'message': 'Yetkiniz yoxdur'}), 403
 
-    affiliates_query = db.session.query(
-        Affiliate,
-        Organizer.name.label('parent_name'),
-        func.count(func.distinct(User.id)).label('registered_count'),
-        func.count(func.distinct(Submission.user_id)).label('participated_count')
+    registered_subquery = db.session.query(
+        User.affiliate_id, func.count(User.id).label('registered_count')
+    ).filter(User.affiliate_id.isnot(None)).group_by(User.affiliate_id).subquery()
+
+    participated_subquery = db.session.query(
+        User.affiliate_id, func.count(func.distinct(User.id)).label('participated_count')
+    ).join(Submission, User.id == Submission.user_id).filter(User.affiliate_id.isnot(None)).group_by(User.affiliate_id).subquery()
+
+    affiliates = db.session.query(
+        Affiliate, Organizer.name.label('parent_name'), registered_subquery.c.registered_count, participated_subquery.c.participated_count
     ).join(Organizer, Affiliate.parent_organizer_id == Organizer.id)\
-     .outerjoin(User, Affiliate.id == User.affiliate_id)\
-     .outerjoin(Submission, User.id == Submission.user_id)\
-     .group_by(Affiliate.id, Organizer.name).all()
+     .outerjoin(registered_subquery, Affiliate.id == registered_subquery.c.affiliate_id)\
+     .outerjoin(participated_subquery, Affiliate.id == participated_subquery.c.affiliate_id).all()
 
     result = [{
         'id': aff.id, 'name': aff.name, 'email': aff.email, 'contact': aff.contact,
-        'bank_account': aff.bank_account,
-        'parent_organizer_name': parent_name, 
-        'commission_rate': aff.commission_rate,
-        'balance': aff.balance,
-        'registered_student_count': registered_count,
-        'participated_student_count': participated_count
-    } for aff, parent_name, registered_count, participated_count in affiliates_query]
+        'bank_account': aff.bank_account, 'parent_organizer_name': parent_name, 
+        'commission_rate': aff.commission_rate, 'balance': aff.balance,
+        'registered_student_count': registered_count or 0,
+        'participated_student_count': participated_count or 0
+    } for aff, parent_name, registered_count, participated_count in affiliates]
 
     return jsonify(result)
 
@@ -1937,3 +1942,43 @@ def get_my_affiliates_details():
     return jsonify(result)
 
 
+@app.route('/api/admin/organizer/<int:org_id>/approve', methods=['POST'])
+@login_required
+def approve_organizer(org_id):
+    if not isinstance(current_user, Admin):
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    
+    organizer = Organizer.query.get_or_404(org_id)
+    organizer.is_approved = True
+    db.session.commit()
+    return jsonify({'message': f"'{organizer.name}' adlı kordinator təsdiqləndi."})
+
+
+
+# app.py -> Faylın sonuna əlavə edin
+
+@app.route('/api/admin/organizer/<int:org_id>', methods=['DELETE'])
+@login_required
+def delete_organizer(org_id):
+    if not isinstance(current_user, Admin):
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    
+    organizer = Organizer.query.get_or_404(org_id)
+    # Bu kordinatora bağlı olan tələbələrin əlaqəsini kəsirik
+    User.query.filter_by(organizer_id=org_id).update({'organizer_id': None})
+    db.session.delete(organizer)
+    db.session.commit()
+    return jsonify({'message': f"'{organizer.name}' adlı kordinator uğurla silindi."})
+
+@app.route('/api/admin/affiliate/<int:affiliate_id>', methods=['DELETE'])
+@login_required
+def delete_affiliate(affiliate_id):
+    if not isinstance(current_user, Admin):
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    
+    affiliate = Affiliate.query.get_or_404(affiliate_id)
+    # Bu əlaqələndiriciyə bağlı olan tələbələrin əlaqəsini kəsirik
+    User.query.filter_by(affiliate_id=affiliate_id).update({'affiliate_id': None})
+    db.session.delete(affiliate)
+    db.session.commit()
+    return jsonify({'message': f"'{affiliate.name}' adlı əlaqələndirici uğurla silindi."})

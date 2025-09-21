@@ -54,52 +54,63 @@ document.addEventListener('DOMContentLoaded', () => {
                     sub.items_to_grade.forEach(item => {
                         let scoreOptions = getScoreOptions(sub.exam_type);
 
+                        // teacher.js -> loadPendingReviews içindəki "if (item.type === 'situational')" blokunu bununla əvəz edin
+
                         if (item.type === 'situational') {
                             let subAnswersHTML = '';
                             item.sub_answers.forEach(ans => {
-                                // ===== ŞƏKİLLƏRİ GÖSTƏRMƏK ÜÇÜN YENİ BLOK BAŞLAYIR =====
+
+                                // Cavabın içindən mətn hissəsini götürürük
+                                let studentAnswerText = '';
+                                if (ans.student_answer && ans.student_answer.text) {
+                                    studentAnswerText = ans.student_answer.text;
+                                }
+
+                                // Cavabın şəkillərini HTML-ə çeviririk
                                 let imagesHTML = '';
                                 if (ans.images && ans.images.length > 0) {
                                     imagesHTML += '<div class="uploaded-images-container">';
                                     ans.images.forEach(imgPath => {
                                         imagesHTML += `
-                                            <a href="/uploads/${imgPath}" target="_blank" title="Şəkli yeni pəncərədə aç">
-                                                <img src="/uploads/${imgPath}" class="uploaded-image" alt="Şagirdin cavabı">
-                                            </a>`;
+                    <a href="/uploads/${imgPath}" target="_blank" title="Şəkli yeni pəncərədə aç">
+                        <img src="/uploads/${imgPath}" class="uploaded-image" alt="Şagirdin cavabı">
+                    </a>`;
                                     });
                                     imagesHTML += '</div>';
                                 }
-                                // ===== ŞƏKİLLƏRİ GÖSTƏRMƏK ÜÇÜN YENİ BLOK BİTİR =====
 
+                                // Hər bir alt-sual üçün yekun HTML-i yaradırıq
                                 subAnswersHTML += `
-                                <div class="sub-answer-block" data-answer-id="${ans.answer_id}">
-                                    <p class="question-text">${ans.question_text}</p>
-                                    
-                                    ${imagesHTML} 
+        <div class="sub-answer-block" data-answer-id="${ans.answer_id}">
+            <p class="question-text">${ans.question_text}</p>
+            
+            <div class="student-answer" style="${studentAnswerText ? '' : 'display:none;'}">
+               ${studentAnswerText}
+            </div>
+            
+            ${imagesHTML} 
 
-                                    <div class="student-answer" style="${ans.student_answer ? '' : 'display:none;'}">
-                                       ${ans.student_answer || ""}
-                                    </div>
-                                    <div class="grading-form">
-                                         <div class="form-group">
-                                            <label for="score-${ans.answer_id}">Bal:</label>
-                                            <select class="score-select" id="score-${ans.answer_id}">${scoreOptions}</select>
-                                        </div>
-                                        <div class="form-group">
-                                            <label for="feedback-${ans.answer_id}">Rəy:</label>
-                                            <textarea id="feedback-${ans.answer_id}" class="feedback-textarea" placeholder="Bu cavaba rəy bildirin..."></textarea>
-                                        </div>
-                                    </div>
-                                </div>`;
+            <div class="grading-form">
+                <div class="form-group">
+                    <label for="score-${ans.answer_id}">Bal:</label>
+                    <select class="score-select" id="score-${ans.answer_id}">${scoreOptions}</select>
+                </div>
+                <div class="form-group">
+                    <label for="feedback-${ans.answer_id}">Rəy:</label>
+                    <textarea id="feedback-${ans.answer_id}" class="feedback-textarea" placeholder="Bu cavaba rəy bildirin..."></textarea>
+                </div>
+            </div>
+        </div>`;
                             });
 
+                            // Bütün alt-sualları ümumi situasiya blokuna əlavə edirik
                             itemsHTML += `
-                            <div class="answer-item situational-wrapper">
-                                <div class="main-question-text"><strong>Situasiya:</strong> ${item.main_text}</div>
-                                ${item.main_image_path ? `<img src="/uploads/${item.main_image_path}" class="main-question-image" alt="Situasiya şəkli">` : ''}
-                                <hr>
-                                ${subAnswersHTML}
-                            </div>`;
+    <div class="answer-item situational-wrapper">
+        <div class="main-question-text"><strong>Situasiya:</strong> ${item.main_text}</div>
+        ${item.main_image_path ? `<img src="/uploads/${item.main_image_path}" class="main-question-image" alt="Situasiya şəkli">` : ''}
+        <hr>
+        ${subAnswersHTML}
+    </div>`;
                         }
                     });
 
@@ -151,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const submissionId = btn.dataset.submissionId;
             const submissionBody = document.getElementById(`submission-body-${submissionId}`);
             const answerBlocks = submissionBody.querySelectorAll('.sub-answer-block');
-            
+
             const answersToGrade = [];
             answerBlocks.forEach(block => {
                 const answerId = block.dataset.answerId;
@@ -169,25 +180,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 credentials: 'include',
                 body: JSON.stringify({ answers: answersToGrade })
             })
-            .then(res => res.json())
-            .then(result => {
-                if (result.message.includes('uğurla')) {
-                    const submissionGroup = document.getElementById(`submission-group-${submissionId}`);
-                    submissionGroup.style.transition = 'opacity 0.5s ease';
-                    submissionGroup.style.opacity = '0';
-                    setTimeout(() => {
-                        submissionGroup.remove();
-                        loadTeacherStats();
-                        if (container.children.length === 0) {
-                            container.innerHTML = '<p class="no-reviews-message">Bütün cavablar yoxlanıldı. Təşəkkürlər!</p>';
-                        }
-                    }, 500);
-                } else {
-                    alert(result.message);
-                    btn.textContent = 'Bütün Cavabları Təsdiqlə';
-                    btn.disabled = false;
-                }
-            });
+                .then(res => res.json())
+                .then(result => {
+                    if (result.message.includes('uğurla')) {
+                        const submissionGroup = document.getElementById(`submission-group-${submissionId}`);
+                        submissionGroup.style.transition = 'opacity 0.5s ease';
+                        submissionGroup.style.opacity = '0';
+                        setTimeout(() => {
+                            submissionGroup.remove();
+                            loadTeacherStats();
+                            if (container.children.length === 0) {
+                                container.innerHTML = '<p class="no-reviews-message">Bütün cavablar yoxlanıldı. Təşəkkürlər!</p>';
+                            }
+                        }, 500);
+                    } else {
+                        alert(result.message);
+                        btn.textContent = 'Bütün Cavabları Təsdiqlə';
+                        btn.disabled = false;
+                    }
+                });
         }
     });
 
