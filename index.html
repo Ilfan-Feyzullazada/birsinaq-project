@@ -79,7 +79,7 @@
 
     <div id="info-modal-overlay" class="modal-overlay">
         <div id="info-modal" class="modal-content">
-            <button id="close-modal-btn" class="close-modal-btn">&times;</button>
+            <button id="close-info-modal-btn" class="close-modal-btn">&times;</button>
 
             <div class="modal-header">
                 <h2>💰 2.000 AZN qazanc şansı!</h2>
@@ -141,14 +141,33 @@
         </div>
     </div>
     <header class="header">
+        <nav class="header-nav-left">
+            <a href="#" id="show-announcements-btn" class="header-announcement-btn">
+                <i class="fas fa-bullhorn"></i> İmtahan Elanları
+            </a>
+        </nav>
+
         <div class="logo">
             <h1>BirSınaq</h1>
         </div>
+
         <nav class="auth-buttons">
             <a href="login.html" class="profile-btn">Profil</a>
             <a href="register.html" class="register-btn">Qeydiyyatdan keç</a>
         </nav>
     </header>
+
+    <div id="announcements-modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <button id="close-announcements-modal-btn" class="close-modal-btn">&times;</button>
+            <div class="modal-header">
+                <h2><i class="fas fa-bullhorn"></i> Son Elanlar və Məlumatlar</h2>
+            </div>
+            <div id="announcements-list-modal" class="modal-body">
+                <p>Yüklənir...</p>
+            </div>
+        </div>
+    </div>
 
     <main class="main-content">
         <div class="final-layout-container">
@@ -186,45 +205,106 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
-            const modalOverlay = document.getElementById('info-modal-overlay');
-            const closeModalBtn = document.getElementById('close-modal-btn');
+            // ===== ELANLAR MODALI ÜÇÜN KOD =====
+            const showAnnouncementsBtn = document.getElementById('show-announcements-btn');
+            // DÜZƏLİŞ 3: Dəyişən adı unikal edildi
+            const announcementsModalOverlay = document.getElementById('announcements-modal-overlay');
+            // DÜZƏLİŞ 4: Dəyişən adı unikal edildi və düzgün ID-yə bağlandı
+            const closeAnnouncementsModalBtn = document.getElementById('close-announcements-modal-btn');
+            const announcementsListModal = document.getElementById('announcements-list-modal');
 
-            // Funksiya: Pəncərəni göstərmək
-            const openModal = () => {
-                if (modalOverlay) {
-                    modalOverlay.classList.add('active');
+            // DÜZƏLİŞ 5: Funksiya adı unikal edildi
+            function openAnnouncementsModal() {
+                if (announcementsModalOverlay) announcementsModalOverlay.classList.add('active');
+            }
+
+            // DÜZƏLİŞ 6: Funksiya adı unikal edildi
+            function closeAnnouncementsModal() {
+                if (announcementsModalOverlay) announcementsModalOverlay.classList.remove('active');
+            }
+
+            function loadAnnouncementsInModal() {
+                fetch('/api/announcements')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!announcementsListModal) return;
+                        if (data.length === 0) {
+                            announcementsListModal.innerHTML = '<p class="no-announcements">Hal-hazırda yeni elan yoxdur.</p>';
+                            return;
+                        }
+                        let html = '';
+                        data.forEach(ann => {
+                            let contentHTML = '';
+                            if (ann.text_content) {
+                                contentHTML += `<div class="ann-text">${ann.text_content}</div>`;
+                            }
+                            if (ann.file_path) {
+                                let fileName = ann.file_path.split('_').slice(1).join('_') || 'Fayl';
+                                contentHTML += `<a href="/uploads/${ann.file_path}" target="_blank" class="ann-file-link"><i class="fas fa-download"></i> Faylı Yüklə: ${fileName}</a>`;
+                            }
+                            html += `<div class="announcement-item"><div class="ann-header"><h4>${ann.title}</h4><span class="ann-date">${ann.created_at}</span></div>${contentHTML}</div>`;
+                        });
+                        announcementsListModal.innerHTML = html;
+                    });
+            }
+
+            if (showAnnouncementsBtn) {
+                showAnnouncementsBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    loadAnnouncementsInModal();
+                    // DÜZƏLİŞ 7: Düzgün funksiya çağırıldı
+                    openAnnouncementsModal();
+                });
+            }
+
+            // DÜZƏLİŞ 8: Düzgün dəyişən və funksiya istifadə edildi
+            if (closeAnnouncementsModalBtn) closeAnnouncementsModalBtn.addEventListener('click', closeAnnouncementsModal);
+            if (announcementsModalOverlay) announcementsModalOverlay.addEventListener('click', (e) => {
+                if (e.target === announcementsModalOverlay) closeAnnouncementsModal();
+            });
+
+
+            // ===== İNFO MODALI ÜÇÜN KOD =====
+            // DÜZƏLİŞ 9: Dəyişən adı unikal edildi
+            const infoModalOverlay = document.getElementById('info-modal-overlay');
+            // DÜZƏLİŞ 10: Dəyişən adı unikal edildi və düzgün ID-yə bağlandı
+            const infoCloseModalBtn = document.getElementById('close-info-modal-btn');
+
+            // DÜZƏLİŞ 11: Funksiya adı unikal edildi
+            const openInfoModal = () => {
+                if (infoModalOverlay) {
+                    infoModalOverlay.classList.add('active');
                 }
             };
 
-            // Funksiya: Pəncərəni bağlamaq
-            const closeModal = () => {
-                if (modalOverlay) {
-                    modalOverlay.classList.remove('active');
-                    // İstifadəçinin pəncərəni bağladığını yadda saxlayırıq ki, bir daha açılmasın
+            // DÜZƏLİŞ 12: Funksiya adı unikal edildi
+            const closeInfoModal = () => {
+                if (infoModalOverlay) {
+                    infoModalOverlay.classList.remove('active');
                     sessionStorage.setItem('infoModalClosed', 'true');
                 }
             };
 
-            // Sayt açıldıqdan 1 saniyə sonra pəncərəni göstəririk (əgər daha əvvəl bağlanmayıbsa)
             if (!sessionStorage.getItem('infoModalClosed')) {
-                setTimeout(openModal, 1000);
+                // DÜZƏLİŞ 13: Düzgün funksiya çağırıldı
+                setTimeout(openInfoModal, 1000);
             }
 
-            // 'x' düyməsinə basanda pəncərəni bağlayırıq
-            if (closeModalBtn) {
-                closeModalBtn.addEventListener('click', closeModal);
+            // DÜZƏLİŞ 14: Düzgün dəyişən və funksiya istifadə edildi
+            if (infoCloseModalBtn) {
+                infoCloseModalBtn.addEventListener('click', closeInfoModal);
             }
 
-            // Pəncərənin kənarındakı qara fona basanda bağlayırıq
-            if (modalOverlay) {
-                modalOverlay.addEventListener('click', (event) => {
-                    if (event.target === modalOverlay) {
-                        closeModal();
+            // DÜZƏLİŞ 15: Düzgün dəyişən və funksiya istifadə edildi
+            if (infoModalOverlay) {
+                infoModalOverlay.addEventListener('click', (event) => {
+                    if (event.target === infoModalOverlay) {
+                        closeInfoModal();
                     }
                 });
             }
 
-            // ===== LİDERLƏR LÖVHƏSİ ÜÇÜN YENİ KOD BAŞLAYIR =====
+            // ===== LİDERLƏR LÖVHƏSİ ÜÇÜN KOD (Dəyişməz qalıb) =====
             const monthlyContainer = document.getElementById('monthly-leaderboard');
             const yearlyContainer = document.getElementById('yearly-leaderboard');
 
@@ -260,10 +340,8 @@
                     });
             }
 
-            // Hər iki lövhəni yükləyirik
             loadLeaderboard('month', monthlyContainer);
             loadLeaderboard('year', yearlyContainer);
-            // ===== LİDERLƏR LÖVHƏSİ ÜÇÜN YENİ KOD BİTİR =====
         });
 
 
@@ -272,10 +350,11 @@
             const monthlyContainer = document.getElementById('monthly-stats-container');
             const yearlyContainer = document.getElementById('yearly-stats-container');
 
-            fetch('/api/student/stats', { credentials: 'include' })
+            fetch('/api/student/stats', {
+                credentials: 'include'
+            })
                 .then(res => {
                     if (res.ok) return res.json();
-                    // Əgər istifadəçi daxil olmayıbsa, bloku gizlədirik
                     const statsDashboard = document.getElementById('student-stats-dashboard');
                     if (statsDashboard) {
                         statsDashboard.style.display = 'none';

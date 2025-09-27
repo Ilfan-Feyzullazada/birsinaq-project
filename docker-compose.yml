@@ -10,6 +10,12 @@ services:
       - POSTGRES_DB=birsinaq_db
     ports:
       - "5432:5432"
+    # YENİ ƏLAVƏ OLUNAN HİSSƏ: Bu blok bazanın hazır olub-olmadığını yoxlayır
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d birsinaq_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   web:
     container_name: flask_web
@@ -18,8 +24,12 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
+    env_file:
+      - .env
+    # DÜZƏLİŞ: Bu hissə proqrama deyir ki, "db" servisi tam SAĞLAM olana qədər gözləsin
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:

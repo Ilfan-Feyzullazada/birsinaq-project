@@ -29,14 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 targetSection.classList.add('active');
             }
 
-            // 5. Hansı səhifəyə kliklənibsə, ona uyğun məlumatı yükləyirik
-            if (targetId === 'exams') loadExams();
-            if (targetId === 'organizers') loadOrganizersAndAffiliates();
-            if (targetId === 'students') setupSubmissionsPage();
-            if (targetId === 'teachers') setupTeachersSection();
-            if (targetId === 'create-exam' && subjects.length === 0) {
-                loadExamMetaData();
-            }
+
         });
     });
 
@@ -290,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (targetId === 'create-exam' && subjects.length === 0) {
                 loadExamMetaData();
             }
+            if (targetId === 'announcements') setupAnnouncementsSection();
         });
     });
 
@@ -1161,4 +1155,202 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
         }
     });
+
+    // --- ELANLAR BÖLMƏSİ ÜÇÜN YENİ KOD ---
+    const announcementsSection = document.getElementById('announcements');
+    if (announcementsSection) {
+        const createForm = document.getElementById('create-announcement-form');
+        const announcementsTableBody = document.getElementById('announcements-table-body');
+
+        function loadAnnouncements() { /* ... funksiyanın məzmunu (əvvəlki mesajda var) ... */ }
+        createForm.addEventListener('submit', (e) => { /* ... funksiyanın məzmunu (əvvəlki mesajda var) ... */ });
+        announcementsTableBody.addEventListener('click', (e) => { /* ... funksiyanın məzmunu (əvvəlki mesajda var) ... */ });
+
+        const announcementsNavItem = document.querySelector('a[href="#announcements"]');
+        if (announcementsNavItem) {
+            announcementsNavItem.parentElement.addEventListener('click', loadAnnouncements);
+        }
+    }
+
+    // --- ELANLAR BÖLMƏSİ ÜÇÜN YENİ FUNKSİYA ---
+    function setupAnnouncementsSection() {
+        const createForm = document.getElementById('create-announcement-form');
+        const announcementsTableBody = document.getElementById('announcements-table-body');
+
+        // Elanlar üçün TinyMCE redaktorunu başladırıq
+        // Əgər redaktor artıq varsa, yenidən yaratmırıq
+        if (!tinymce.get('announcement-text')) {
+            tinymce.init({
+                selector: '#announcement-text',
+                plugins: 'lists link image table code help wordcount',
+                toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist | help',
+                height: 250,
+                menubar: false,
+            });
+        }
+
+        function loadAnnouncements() {
+            if (!announcementsTableBody) return;
+            announcementsTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Yüklənir...</td></tr>';
+            fetch('/api/admin/announcements', { credentials: 'include' })
+                .then(res => res.json())
+                .then(data => {
+                    announcementsTableBody.innerHTML = '';
+                    if (data.length === 0) {
+                        announcementsTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Heç bir elan yaradılmayıb.</td></tr>';
+                        return;
+                    }
+                    data.forEach(ann => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                    <td>${ann.title}</td>
+                    <td>${ann.created_at}</td>
+                    <td class="actions">
+                        <button class="action-btn delete delete-announcement-btn" data-id="${ann.id}">Sil</button>
+                    </td>
+                `;
+                        announcementsTableBody.appendChild(tr);
+                    });
+                });
+        }
+
+        if (createForm) {
+            createForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                // Redaktordakı mətni formaya köçürürük
+                tinymce.triggerSave();
+
+                const formData = new FormData(createForm);
+
+                fetch('/api/admin/announcements', {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: formData
+                })
+                    .then(res => res.json().then(data => ({ ok: res.ok, data })))
+                    .then(({ ok, data }) => {
+                        alert(data.message);
+                        if (ok) {
+                            createForm.reset();
+                            const editor = tinymce.get('announcement-text');
+                            if (editor) {
+                                editor.setContent('');
+                            }
+                            loadAnnouncements(); // Siyahını yenilə
+                        }
+                    });
+            });
+        }
+
+        if (announcementsTableBody) {
+            announcementsTableBody.addEventListener('click', (e) => {
+                const deleteBtn = e.target.closest('.delete-announcement-btn');
+                if (deleteBtn) {
+                    const annId = deleteBtn.dataset.id;
+                    if (confirm('Bu elanı silmək istədiyinizə əminsiniz?')) {
+                        fetch(`/api/admin/announcements/${annId}`, { method: 'DELETE', credentials: 'include' })
+                            .then(res => res.json())
+                            .then(result => {
+                                alert(result.message);
+                                loadAnnouncements();
+                            });
+                    }
+                }
+            });
+        }
+
+        loadAnnouncements();
+    }
+
+    // admin-dashboard.js faylının SONUNA bunu əlavə et
+    function setupAnnouncementsSection() {
+        const createForm = document.getElementById('create-announcement-form');
+        const announcementsTableBody = document.getElementById('announcements-table-body');
+
+        if (!tinymce.get('announcement-text')) {
+            tinymce.init({
+                selector: '#announcement-text',
+                plugins: 'lists link image table code help wordcount',
+                toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist | help',
+                height: 250,
+                menubar: false,
+            });
+        }
+
+        function loadAnnouncements() {
+            if (!announcementsTableBody) return;
+            announcementsTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Yüklənir...</td></tr>';
+            fetch('/api/admin/announcements', { credentials: 'include' })
+                .then(res => res.json())
+                .then(data => {
+                    announcementsTableBody.innerHTML = '';
+                    if (data.length === 0) {
+                        announcementsTableBody.innerHTML = '<tr><td colspan="3" style="text-align:center;">Heç bir elan yaradılmayıb.</td></tr>';
+                        return;
+                    }
+                    data.forEach(ann => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                    <td>${ann.title}</td>
+                    <td>${ann.created_at}</td>
+                    <td class="actions">
+                        <button class="action-btn delete delete-announcement-btn" data-id="${ann.id}">Sil</button>
+                    </td>
+                `;
+                        announcementsTableBody.appendChild(tr);
+                    });
+                });
+        }
+
+        if (createForm && !createForm.hasAttribute('data-listener-attached')) {
+            createForm.setAttribute('data-listener-attached', 'true');
+            createForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                tinymce.triggerSave();
+                const formData = new FormData(createForm);
+
+                fetch('/api/admin/announcements', {
+                    method: 'POST',
+                    credentials: 'include',
+                    body: formData
+                })
+                    .then(res => res.json().then(data => ({ ok: res.ok, data })))
+                    .then(({ ok, data }) => {
+                        alert(data.message);
+                        if (ok) {
+                            createForm.reset();
+                            const editor = tinymce.get('announcement-text');
+                            if (editor) {
+                                editor.setContent('');
+                            }
+                            loadAnnouncements();
+                        }
+                    });
+            });
+        }
+
+        if (announcementsTableBody) {
+            announcementsTableBody.addEventListener('click', (e) => {
+                const deleteBtn = e.target.closest('.delete-announcement-btn');
+                if (deleteBtn) {
+                    const annId = deleteBtn.dataset.id;
+                    if (confirm('Bu elanı silmək istədiyinizə əminsiniz?')) {
+                        fetch(`/api/admin/announcements/${annId}`, { method: 'DELETE', credentials: 'include' })
+                            .then(res => res.json())
+                            .then(result => {
+                                alert(result.message);
+                                loadAnnouncements();
+                            });
+                    }
+                }
+            });
+        }
+
+        loadAnnouncements();
+    }
+
+
 });
+
+

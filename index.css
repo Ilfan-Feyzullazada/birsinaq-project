@@ -194,7 +194,7 @@ body::before {
     background: #fff;
     padding: 30px 40px;
     border-radius: 12px;
-    max-width: 750px;
+    max-width: 900px;
     /* Dəyəri 600px-dən 750px-ə qaldırdıq */
     width: 90%;
     position: relative;
@@ -344,4 +344,34 @@ body::before {
     font-weight: bold;
     font-size: 1.1em;
     color: #007BFF;
+}
+
+
+
+/* Sol tərəfdəki naviqasiya bloku üçün stil */
+.header-nav-left {
+    display: flex;
+    align-items: center;
+}
+
+/* Elanlar düyməsinin yeni, səliqəli görünüşü */
+.header-announcement-btn {
+    text-decoration: none;
+    color: #0d2d50; /* Loqonun rənginə uyğun tünd göy */
+    font-weight: 600;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px; /* İkon ilə mətn arasında boşluq */
+    padding: 10px 15px;
+    border-radius: 8px;
+    transition: background-color 0.3s ease;
+}
+
+.header-announcement-btn:hover {
+    background-color: #e9f5ff; /* Üzərinə gəldikdə çox açıq mavi fon */
+}
+
+.header-announcement-btn i {
+    color: #007BFF; /* İkon üçün daha parlaq mavi */
 }

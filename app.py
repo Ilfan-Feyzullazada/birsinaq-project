@@ -3,7 +3,9 @@
 import os
 import uuid
 import click
+import requests
 import json
+from flask import redirect
 from datetime import datetime
 from collections import defaultdict
 from datetime import timedelta
@@ -26,11 +28,11 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 # --- Tətbiqin Qurulması ---
 app = Flask(__name__)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
-CORS(app, supports_credentials=True, origins=["http://127.0.0.1:5500", "http://127.0.0.1:5501"])
+CORS(app, supports_credentials=True, origins=["http://127.0.0.1:5500", "http://127.0.0.1:5501", "http://localhost:8000"])
 
 # --- Konfiqurasiya ---
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'bu-cox-gizli-bir-acardir-hec-kime-vermeyin')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'db.sqlite3')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'localhost')
@@ -514,14 +516,13 @@ def profile():
         return jsonify({'message': 'Yetkiniz yoxdur'}), 403
 
     submission_history = []
-    # İstifadəçinin imtahan keçmişini tarixinə görə sıralayırıq
     for sub in sorted(current_user.submissions, key=lambda x: x.submitted_at, reverse=True):
         submission_history.append({
             'id': sub.id,
             'exam_title': sub.exam.title,
             'score': sub.score,
             'date': sub.submitted_at.strftime('%Y-%m-%d %H:%M'),
-            'exam_id': sub.exam_id  # YENİ: Hər bir nəticə üçün imtahanın öz ID-sini də göndəririk
+            'exam_id': sub.exam_id  # <<< ƏSAS OLAN BU SƏTİRDİR
         })
 
     return jsonify({
@@ -722,16 +723,25 @@ def submit_exam():
         final_stats = calculate_detailed_score(new_submission)
         new_submission.score = final_stats.get('final_score', 0)
 
-        # 5. Avtomatik balans artırma məntiqi
-        if user_who_submitted and user_who_submitted.registration_commission:
+        # 5. İmtahan ödənişli olduqda komissiyaları hesablamaq üçün YENİ BLOK
+        if exam.price > 0 and user_who_submitted:
+            # Ssenari 1: Şagirdi birbaşa Kordinator cəlb edibsə
             if user_who_submitted.organizer_id and not user_who_submitted.affiliate_id:
                 organizer = Organizer.query.get(user_who_submitted.organizer_id)
                 if organizer:
-                    organizer.balance += user_who_submitted.registration_commission
+                    organizer.balance += organizer.commission_amount
+            
+            # Ssenari 2: Şagirdi Əlaqələndirici cəlb edibsə
             elif user_who_submitted.affiliate_id:
                 affiliate = Affiliate.query.get(user_who_submitted.affiliate_id)
                 if affiliate:
-                    affiliate.balance += user_who_submitted.registration_commission
+                    # 1. Əlaqələndiricinin balansını öz komissiyası qədər artırırıq
+                    affiliate.balance += affiliate.commission_rate
+                    
+                    # 2. Kordinatorun balansını heç nə çıxmadan, tam məbləğdə artırırıq
+                    parent_organizer = affiliate.parent_organizer
+                    if parent_organizer:
+                        parent_organizer.balance += parent_organizer.commission_amount
 
         db.session.commit()
         session['last_submission_id'] = new_submission.id
@@ -742,7 +752,8 @@ def submit_exam():
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'Daxili xəta baş verdi: {str(e)}'}), 500
-    
+
+
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -1982,3 +1993,159 @@ def delete_affiliate(affiliate_id):
     db.session.delete(affiliate)
     db.session.commit()
     return jsonify({'message': f"'{affiliate.name}' adlı əlaqələndirici uğurla silindi."})
+
+
+
+# Köhnə create_payment_order funksiyasını silib, bunu onun yerinə yapışdırın
+@app.route('/api/create-payment-order', methods=['POST'])
+def create_payment_order():
+    data = request.get_json()
+    exam_id = data.get('examId')
+    exam = Exam.query.get(exam_id)
+
+    if not exam:
+        return jsonify({'error': 'İmtahan tapılmadı'}), 404
+
+    # .env faylından Payriff məlumatlarını oxuyuruq
+    merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
+    secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
+
+    # Geri dönüş ünvanlarını hazırlayırıq
+    base_url = request.host_url.replace('http://', 'https://') if '127.0.0.1' not in request.host_url else request.host_url
+    approve_url = f"{base_url}payment-callback?status=success&exam_id={exam.id}"
+    cancel_url = f"{base_url}payment-callback?status=cancel"
+    decline_url = f"{base_url}payment-callback?status=decline"
+
+    # Payriff API-a göndəriləcək məlumatlar
+    payload = {
+        "body": {
+            "amount": float(exam.price),
+            "currencyType": "AZN",
+            "description": f"'{exam.title}' imtahanı üçün ödəniş.",
+            "approveURL": approve_url,
+            "cancelURL": cancel_url,
+            "declineURL": decline_url,
+            "directPay": True,
+            "language": "AZ"
+        },
+        "merchant": merchant_id
+    }
+
+    # YENİ VƏ DÜZGÜN AVTORİZASİYA BAŞLIĞI
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': secret_key  # SECRET KEY-i bura əlavə edirik
+    }
+
+    try:
+        # Payriff API-a POST sorğusu göndəririk
+        response = requests.post("https://api.payriff.com/api/v2/createOrder", json=payload, headers=headers)
+        response.raise_for_status() 
+        payment_data = response.json()
+
+        if payment_data.get('code') == '00000': 
+            return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
+        else:
+            return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
+
+    except Exception as e:
+        return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
+    
+    
+@app.route('/payment-callback')
+def payment_callback():
+    """
+    Payriff-dən gələn cavabı idarə edir və istifadəçini yönləndirir.
+    """
+    status = request.args.get('status')
+    exam_id = request.args.get('exam_id')
+
+    if status == 'success':
+        student_name = "Qonaq"
+        if current_user.is_authenticated and isinstance(current_user, User):
+            student_name = current_user.name
+
+        return redirect(f"/exam-test.html?examId={exam_id}&payment=success&studentName={student_name}")
+
+    else: # (status == 'cancel' or status == 'decline')
+        # istifadəçini imtahan seçmə səhifəsinə geri qaytarırıq
+        return redirect(f"/exam.html?payment_status=failed")
+    
+    
+    # --- YENİ: ELANLAR (ANNOUNCEMENTS) SİSTEMİ ---
+
+class Announcement(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    text_content = db.Column(db.Text, nullable=True)
+    file_path = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+@app.route('/api/announcements', methods=['GET'])
+def get_announcements():
+    """Ana səhifə üçün elanları çəkir (ən son 5 elan)"""
+    announcements = Announcement.query.order_by(Announcement.created_at.desc()).limit(5).all()
+    result = [{
+        'id': announcement.id,
+        'title': announcement.title,
+        'text_content': announcement.text_content,
+        'file_path': announcement.file_path,
+        'created_at': announcement.created_at.strftime('%d-%m-%Y %H:%M')
+    } for announcement in announcements]
+    return jsonify(result)
+
+@app.route('/api/admin/announcements', methods=['GET', 'POST'])
+@login_required
+def manage_announcements():
+    if not isinstance(current_user, Admin):
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+
+    if request.method == 'POST':
+        title = request.form.get('title')
+        text_content = request.form.get('text_content')
+        file = request.files.get('file')
+
+        if not title:
+            return jsonify({'message': 'Başlıq daxil etmək məcburidir'}), 400
+
+        file_path = None
+        if file and file.filename != '':
+            filename = secure_filename(file.filename)
+            unique_filename = str(uuid.uuid4()) + "_" + filename
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
+            file_path = unique_filename
+
+        new_announcement = Announcement(
+            title=title,
+            text_content=text_content,
+            file_path=file_path
+        )
+        db.session.add(new_announcement)
+        db.session.commit()
+        return jsonify({'message': 'Elan uğurla yaradıldı!'}), 201
+
+    # GET request
+    announcements = Announcement.query.order_by(Announcement.created_at.desc()).all()
+    result = [{
+        'id': announcement.id,
+        'title': announcement.title,
+        'created_at': announcement.created_at.strftime('%d-%m-%Y')
+    } for announcement in announcements]
+    return jsonify(result)
+
+@app.route('/api/admin/announcements/<int:announcement_id>', methods=['DELETE'])
+@login_required
+def delete_announcement(announcement_id):
+    if not isinstance(current_user, Admin):
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    
+    announcement = Announcement.query.get_or_404(announcement_id)
+    if announcement.file_path:
+        try:
+            os.remove(os.path.join(app.config['UPLOAD_FOLDER'], announcement.file_path))
+        except OSError as e:
+            print(f"Error deleting file: {e.strerror}")
+
+    db.session.delete(announcement)
+    db.session.commit()
+    return jsonify({'message': 'Elan uğurla silindi!'})
