@@ -493,20 +493,27 @@ def get_all_exams():
     exam_list = [{'id': exam.id, 'name': exam.name, 'is_active': exam.is_active, 'question_count': len(exam.questions)} for exam in exams]
     return jsonify(exam_list)
 
+# app.py -> Köhnə delete_exam funksiyasını bununla tam əvəz et
+
 @app.route('/api/admin/exams/<int:exam_id>', methods=['DELETE'])
 @login_required
 def delete_exam(exam_id):
     if not isinstance(current_user, Admin):
         return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    
     exam = Exam.query.get_or_404(exam_id)
     try:
-        Submission.query.filter_by(exam_id=exam.id).delete()
+        # DÜZƏLİŞ BURADADIR:
+        # Biz sadəcə imtahanın özünü silirik. SQLAlchemy "cascade" qaydalarına
+        # görə ona bağlı olan hər şeyi (submission-ları və onlara bağlı answer-ları)
+        # bizim üçün avtomatik olaraq siləcək.
         db.session.delete(exam)
         db.session.commit()
         return jsonify({'message': 'İmtahan və ona bağlı bütün nəticələr uğurla silindi!'})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'message': f'Xəta baş verdi: {str(e)}'}), 500
+        print(f"Error deleting exam: {e}") # Xətanı serverin loquna yazdırırıq
+        return jsonify({'message': f'İmtahan silinərkən xəta baş verdi: {str(e)}'}), 500
 
 @app.route('/api/admin/exam-meta', methods=['GET'])
 @login_required
