@@ -2092,6 +2092,7 @@ def create_payment_order():
 
 # app.py -> Köhnə payment_callback funksiyasını BUNUNLA TAM ƏVƏZ ET
 # app.py -> Köhnə payment_callback funksiyasını BUNUNLA TAM ƏVƏZ ET
+
 @app.route('/payment-callback', methods=['GET', 'POST'])
 def payment_callback():
     # --- HİSSƏ 1: PAYRIFF SERVERİNDƏN GƏLƏN GİZLİ SORĞU (POST) ---
@@ -2117,22 +2118,28 @@ def payment_callback():
 
     # --- HİSSƏ 2: İSTİFADƏÇİNİN BRAUZERİNDƏN GƏLƏN SORĞU (GET) ---
     elif request.method == 'GET':
-        order_id = request.args.get('orderId')
-        exam_id = request.args.get('exam_id')
+        # DÜZƏLİŞ BURADADIR: Məlumatları linkdən yox, birbaşa SESSİYADAN götürürük
+        order_id = session.get('pending_order_id')
+        exam_id = session.get('pending_exam_id')
 
         if not order_id or not exam_id:
-            return redirect(f"/exam.html?payment_status=error&message=SifarisMelumatlariTapilmadi")
+            # Bu xəta sessiyada problem olarsa görünəcək
+            return redirect(f"/exam.html?payment_status=error&message=SessiyaXetasi")
 
-        is_approved = False
-        # DƏYİŞİKLİK: Gözləmə müddətini 5 saniyəyə endirdik
-        for _ in range(5):
+        is_paid = None
+        # DÜZƏLİŞ: Sənin istədiyin kimi, gözləmə müddətini 5 saniyəyə endirdik
+        for _ in range(5): 
             payment_record = PaidExam.query.filter_by(order_id=order_id, status='APPROVED').first()
             if payment_record:
-                is_approved = True
+                is_paid = True
                 break
             time.sleep(1) 
 
-        if is_approved:
+        # Sessiyanı təmizləyirik ki, təkrar istifadə olunmasın
+        session.pop('pending_order_id', None)
+        session.pop('pending_exam_id', None)
+
+        if is_paid:
             student_name = "Qonaq"
             if current_user.is_authenticated and isinstance(current_user, User):
                 student_name = current_user.name
