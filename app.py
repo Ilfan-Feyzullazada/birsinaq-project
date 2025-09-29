@@ -79,7 +79,7 @@ class User(db.Model, UserMixin):
 # app.py -> Köhnə PaidExam klassını bununla əvəz et
 class PaidExam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
     order_id = db.Column(db.String(100), unique=True, nullable=False)
     status = db.Column(db.String(20), nullable=False, default='PENDING') # PENDING, APPROVED, FAILED
@@ -2038,7 +2038,7 @@ def create_payment_order():
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
     base_url = request.host_url
 
-    callback_url = f"{base_url}payment-callback" # URL təmiz olmalıdır
+    callback_url = f"{base_url}payment-callback"
     description = f"'{exam.title}' imtahanı üçün ödəniş."
 
     payload = {
@@ -2046,9 +2046,9 @@ def create_payment_order():
             "amount": float(exam.price),
             "currencyType": "AZN",
             "description": description,
-            "approveURL": callback_url, # ?status=... silindi
-            "cancelURL": callback_url,  # ?status=... silindi
-            "declineURL": callback_url, # ?status=... silindi
+            "approveURL": callback_url,
+            "cancelURL": callback_url,
+            "declineURL": callback_url,
             "directPay": True,
             "language": "AZ"
         },
@@ -2068,7 +2068,6 @@ def create_payment_order():
         if payment_data.get('code') == '00000':
             order_id = payment_data['payload']['orderId']
 
-            # ƏSAS HƏLL YOLU: Ödəniş cəhdini "PENDING" statusu ilə bazaya yazırıq
             new_paid_exam = PaidExam(
                 user_id=user_id,
                 exam_id=exam.id,
@@ -2098,7 +2097,6 @@ def create_payment_order():
 
 @app.route('/payment-callback', methods=['GET', 'POST'])
 def payment_callback():
-    # HİSSƏ 1: PAYRIFF SERVERİNDƏN GƏLƏN GİZLİ POST SORĞUSU (WEBHOOK)
     if request.method == 'POST':
         try:
             payload = request.get_json(force=True)
@@ -2119,7 +2117,6 @@ def payment_callback():
             print(f"PAYRIFF POST CALLBACK XƏTASI: {e}")
             return jsonify({'status': 'error'}), 500
 
-    # HİSSƏ 2: İSTİFADƏÇİNİN BRAUZERİNDƏN GƏLƏN GET SORĞUSU
     elif request.method == 'GET':
         order_id = session.get('pending_order_id')
         exam_id = session.get('pending_exam_id')
@@ -2128,7 +2125,6 @@ def payment_callback():
             return redirect(f"/exam.html?payment_status=failed&message=SessiyaXetasi")
 
         is_paid = False
-        # 5 saniyə ərzində bazanı yoxlayırıq ki, POST sorğusu gəlib statusu yeniləyibmi
         for _ in range(5): 
             payment_record = PaidExam.query.filter_by(order_id=order_id, status='APPROVED').first()
             if payment_record:
@@ -2136,7 +2132,6 @@ def payment_callback():
                 break
             time.sleep(1) 
 
-        # Hansı halda olursa olsun, sessiyanı təmizləyirik
         session.pop('pending_order_id', None)
         session.pop('pending_exam_id', None)
 
