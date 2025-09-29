@@ -74,18 +74,16 @@ class User(db.Model, UserMixin):
 
     def get_id(self): return f"user-{self.id}"
     
-# app.py -> digər modellərin yanına əlavə edin
 class PaymentOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Qeydiyyatlı istifadəçi üçün
-    guest_email = db.Column(db.String(100), nullable=True) # Qonaq üçün
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    guest_email = db.Column(db.String(100), nullable=True)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
     payriff_order_id = db.Column(db.String(100), unique=True, nullable=False)
-    status = db.Column(db.String(50), nullable=False, default='PENDING') # PENDING, APPROVED, CANCELED
+    status = db.Column(db.String(50), nullable=False, default='PENDING')
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    
-    user = db.relationship('User')
-    exam = db.relationship('Exam')    
+    user = db.relationship('User', backref='payment_orders')
+    exam = db.relationship('Exam', backref='payment_orders') 
 
 # app.py -> Köhnə Organizer class-ını bununla əvəz edin
 class Organizer(db.Model, UserMixin):
@@ -552,21 +550,16 @@ def get_exam_categories():
         active_exams = Exam.query.filter_by(is_active=True).all()
         categories = defaultdict(set)
         for exam in active_exams:
-            # === ƏSAS DÜZƏLİŞ BURADADIR ===
-            # Yalnız növü və sinfi olan imtahanları nəzərə alırıq
+            # Xətanın qarşısını alan yoxlama
             if exam.exam_type and exam.class_name:
                 categories[exam.exam_type.name].add(exam.class_name.name)
         
         result = {key: sorted(list(value)) for key, value in categories.items()}
         return jsonify(result)
     except Exception as e:
-        # Xəta baş verərsə, loqa daha ətraflı məlumat yazırıq
         print(f"ERROR in /api/exams/categories: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": "Daxili server xətası"}), 500
 
-# app.py -> Köhnə /api/exams funksiyasını bununla əvəz edin
 @app.route('/api/exams')
 def get_exams_by_category():
     exam_type_name = request.args.get('type')
@@ -582,6 +575,7 @@ def get_exams_by_category():
     exams = Exam.query.filter_by(is_active=True, exam_type_id=exam_type.id, class_name_id=class_name_obj.id).all()
     
     paid_exam_ids = set()
+    # Yalnız daxil olmuş istifadəçilər üçün ödənişi yoxlayırıq
     if current_user.is_authenticated and isinstance(current_user, User):
         paid_exam_ids = {
             order.exam_id for order in 
@@ -592,7 +586,7 @@ def get_exams_by_category():
         'id': exam.id,
         'title': exam.title,
         'price': exam.price,
-        'is_paid': exam.id in paid_exam_ids
+        'is_paid': exam.id in paid_exam_ids # Qonaqlar üçün bu həmişə "false" olacaq
     } for exam in exams]
     
     return jsonify(exam_list)
@@ -2078,75 +2072,48 @@ import hmac
 import hashlib
 import base64
 
+# app.py -> Köhnə payment-callback funksiyasını bununla TAM ƏVƏZ EDİN
+
 @app.route('/payment-callback', methods=['GET', 'POST'])
 def payment_callback():
-    # POST sorğusu Payriff-in serverindən gəlir (Webhook)
-    if request.method == 'POST':
-        # ... Bu hissə olduğu kimi qalır, heç bir dəyişiklik etməyin ...
+    if request.method == 'POST': # Bu, Payriff serverindən gələn webhook-dur
         secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
         request_signature = request.headers.get('X-Signature')
         request_data_bytes = request.get_data()
-
-        computed_signature = base64.b64encode(hmac.new(
-            key=secret_key.encode('utf-8'),
-            msg=request_data_bytes,
-            digestmod=hashlib.sha256
-        ).digest()).decode('utf-8')
+        
+        computed_signature = base64.b64encode(hmac.new(key=secret_key.encode('utf-8'), msg=request_data_bytes, digestmod=hashlib.sha256).digest()).decode('utf-8')
         
         if not hmac.compare_digest(computed_signature, request_signature):
-            print("WARNING: Invalid Payriff webhook signature.")
             return jsonify({'error': 'Invalid signature'}), 403
-
+        
         data = request.get_json()
         payload = data.get('payload', {})
         payriff_order_id = payload.get('orderID')
         status = payload.get('paymentStatus')
-
-        if not payriff_order_id:
-            return jsonify({'status': 'ok'}), 200
-
-        order = PaymentOrder.query.filter_by(payriff_order_id=payriff_order_id).first()
-        if not order:
-            return jsonify({'status': 'ok'}), 200
-
-        if status == 'APPROVED':
-            order.status = 'APPROVED'
-            # Komissiya məntiqi burada işləyir
-            user = User.query.get(order.user_id)
-            if user:
-                if user.organizer_id and not user.affiliate_id:
-                    organizer = Organizer.query.get(user.organizer_id)
-                    if organizer:
-                        organizer.balance += organizer.commission_amount
-                elif user.affiliate_id:
-                    affiliate = Affiliate.query.get(user.affiliate_id)
-                    if affiliate and affiliate.parent_organizer:
-                        affiliate.balance += affiliate.commission_rate
-                        affiliate.parent_organizer.balance += affiliate.parent_organizer.commission_amount
-        else:
-            order.status = 'FAILED'
-
-        db.session.commit()
+        
+        if payriff_order_id:
+            order = PaymentOrder.query.filter_by(payriff_order_id=payriff_order_id).first()
+            if order:
+                order.status = 'APPROVED' if status == 'APPROVED' else 'FAILED'
+                db.session.commit()
         return jsonify({'status': 'ok'}), 200
 
-    # GET sorğusu istifadəçinin brauzerindən gəlir
-    elif request.method == 'GET':
-        # === ƏSAS DƏYİŞİKLİK BURADADIR ===
-        # Payriff-dən gələn orderID-ni götürürük
+    elif request.method == 'GET': # Bu, istifadəçinin brauzerindən gələn yönləndirmədir
         order_id_from_payriff = request.args.get('orderID')
         if not order_id_from_payriff:
-            # Əgər orderID yoxdursa, deməli ödəniş uğursuz olub, imtahan siyahısına qaytarırıq
-            return redirect(f"/exam-list.html?payment=failed")
-
-        # Həmin orderID-yə uyğun sifarişi bazadan tapırıq
+            return redirect(f"/exam.html?payment=failed")
+        
         order = PaymentOrder.query.filter_by(payriff_order_id=order_id_from_payriff).first()
-
-        # Əgər sifariş tapılıbsa və statusu "Təsdiqlənib"sə, birbaşa imtahana yönləndiririk
+        
         if order and order.status == 'APPROVED':
-            return redirect(f"/exam-test.html?examId={order.exam_id}")
+            redirect_url = f"/exam-test.html?examId={order.exam_id}"
+            if order.guest_email:
+                submission = Submission.query.filter_by(guest_email=order.guest_email).order_by(Submission.id.desc()).first()
+                guest_name = submission.guest_name if submission else "Qonaq"
+                redirect_url += f"&studentName={guest_name}&studentEmail={order.guest_email}"
+            return redirect(redirect_url)
         else:
-            # Əks halda, imtahan siyahısına qaytarırıq
-            return redirect(f"/exam-list.html?payment=failed")
+            return redirect(f"/exam.html?payment=failed")
         
 class Announcement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -2154,6 +2121,66 @@ class Announcement(db.Model):
     text_content = db.Column(db.Text, nullable=True)
     file_path = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+# app.py -> Bu yeni funksiyanı fayla əlavə edin
+
+@app.route('/api/create-guest-payment-order', methods=['POST'])
+def create_guest_payment_order():
+    data = request.get_json()
+    exam_id = data.get('examId')
+    guest_name = data.get('guestName')
+    guest_email = data.get('guestEmail')
+
+    if not all([exam_id, guest_name, guest_email]):
+        return jsonify({'error': 'Bütün məlumatlar daxil edilməlidir'}), 400
+
+    exam = Exam.query.get(exam_id)
+    if not exam:
+        return jsonify({'error': 'İmtahan tapılmadı'}), 404
+
+    # Payriff məntiqi eyni qalır
+    merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
+    secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
+    base_url = request.host_url
+    payriff_order_id = str(uuid.uuid4())
+    callback_url = f"{base_url}payment-callback"
+
+    payload = {
+        "body": {
+            "amount": float(exam.price), "currencyType": "AZN",
+            "description": f"'{exam.title}' imtahanı üçün ödəniş.",
+            "approveURL": callback_url, "cancelURL": callback_url, "declineURL": callback_url,
+            "language": "AZ", "orderID": payriff_order_id
+        }, "merchant": merchant_id
+    }
+    headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
+    
+    try:
+        response = requests.post("https://api.payriff.com/api/v2/createOrder", json=payload, headers=headers)
+        response.raise_for_status()
+        payment_data = response.json()
+
+        if payment_data.get('code') == '00000':
+            # Sifarişi user_id olmadan, guest_email ilə yaradırıq
+            new_order = PaymentOrder(
+                exam_id=exam.id,
+                payriff_order_id=payriff_order_id,
+                guest_email=guest_email,
+                status='PENDING'
+            )
+            db.session.add(new_order)
+            db.session.commit()
+            return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
+        else:
+            return jsonify({'error': payment_data.get('message', 'Payriff xətası')}), 500
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Xəta: {str(e)}'}), 500
+
+
+
+
 
 @app.route('/api/announcements', methods=['GET'])
 def get_announcements():

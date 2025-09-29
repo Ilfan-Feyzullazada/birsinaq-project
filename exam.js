@@ -1,27 +1,37 @@
-// exam.js - Dinamik olaraq imtahan növlərini və sinifləri backend-dən yükləyir
+// exam.js - YEKUN VƏ TAM KOD
 document.addEventListener('DOMContentLoaded', () => {
     const container = document.querySelector('.exam-card-container');
 
     fetch('/api/exams/categories')
-        .then(response => response.json())
+        .then(response => {
+            // Serverdən gələn cavabın uğurlu olduğunu yoxlayırıq
+            if (!response.ok) {
+                // Əgər 500 xətası və ya başqa bir problem varsa, prosesi dayandırırıq
+                throw new Error(`Server xətası: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(categories => {
             container.innerHTML = ''; // Köhnə statik məzmunu təmizlə
 
-            if (Object.keys(categories).length === 0) {
+            // Gələn datanın boş olub-olmadığını yoxlayırıq
+            if (!categories || Object.keys(categories).length === 0) {
                 container.innerHTML = '<p style="text-align:center; font-size: 1.2rem;">Hal-hazırda aktiv imtahan yoxdur.</p>';
                 return;
             }
 
             for (const examType in categories) {
                 const grades = categories[examType];
-                
                 const card = document.createElement('div');
                 card.className = 'exam-type-card';
 
                 let gradeButtonsHTML = '';
-                grades.forEach(grade => {
-                    gradeButtonsHTML += `<button class="grade-btn" data-type="${examType}" data-grade="${grade}">${grade}</button>`;
-                });
+                // Gələn "grades" datanın array (siyahı) olduğunu yoxlayırıq
+                if (Array.isArray(grades)) {
+                    grades.forEach(grade => {
+                        gradeButtonsHTML += `<button class="grade-btn" data-type="${examType}" data-grade="${grade}">${grade}</button>`;
+                    });
+                }
 
                 card.innerHTML = `
                     <h3>${examType}</h3>
@@ -33,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         })
         .catch(error => {
-            console.error('Xəta:', error);
+            console.error('İmtahan kateqoriyaları yüklənərkən xəta:', error);
             container.innerHTML = '<p style="text-align:center; font-size: 1.2rem; color: red;">İmtahanları yükləmək mümkün olmadı.</p>';
         });
 
