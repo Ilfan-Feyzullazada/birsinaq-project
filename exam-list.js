@@ -1,3 +1,5 @@
+// exam-list.js faylının YENİ və DÜZGÜN versiyası
+
 document.addEventListener('DOMContentLoaded', () => {
     const examListContainer = document.querySelector('.exam-list');
     const titleElement = document.getElementById('exam-list-title');
@@ -14,8 +16,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    // `credentials: 'include'` əlavə etdik ki, login məlumatları da getsin
     fetch(`/api/exams?type=${encodeURIComponent(examType)}&grade=${encodeURIComponent(examGrade)}`, { credentials: 'include' })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Server cavab vermir');
+            }
+            return response.json();
+        })
         .then(exams => {
             examListContainer.innerHTML = '';
             if (exams.length === 0) {
@@ -27,11 +35,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const examItem = document.createElement('div');
                 examItem.className = 'exam-item';
 
-                let actionHTML = `<a href="#" class="payment-btn" data-exam-id="${exam.id}">İştirak Et</a>`;
-                let priceText = exam.price > 0 ? `${exam.price.toFixed(2)} AZN` : 'Pulsuz';
+                let actionHTML;
+                const priceText = exam.price > 0 ? `${exam.price.toFixed(2)} AZN` : 'Pulsuz';
 
-                if (exam.price <= 0) {
-                    actionHTML = `<a href="exam-test.html?examId=${exam.id}" class="payment-btn">İştirak Et</a>`;
+                if (exam.is_taken) {
+                    // Əgər istifadəçi artıq imtahanı veribsə
+                    actionHTML = `<a href="result.html?submission_id=${exam.submission_id}" class="result-btn">Nəticəyə Bax</a>`;
+                } else if (exam.price <= 0) {
+                    // Əgər imtahan pulsuzdursa
+                    actionHTML = `<a href="exam-test.html?examId=${exam.id}" class="participate-btn">İştirak Et</a>`;
+                } else {
+                    // Əgər imtahan ödənişlidirsə, ödəniş səhifəsinə yönləndiririk
+                    actionHTML = `<a href="exam-payment.html?examId=${exam.id}&price=${exam.price}" class="payment-btn">İştirak Et</a>`;
                 }
 
                 examItem.innerHTML = `
@@ -51,37 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('İmtahanları yükləyərkən xəta:', error);
             examListContainer.innerHTML = '<p style="text-align: center; color: red;">İmtahanları yükləmək mümkün olmadı.</p>';
         });
-
-    examListContainer.addEventListener('click', (e) => {
-        if (e.target.classList.contains('payment-btn') && e.target.dataset.examId) {
-            e.preventDefault(); 
-
-            const examId = e.target.dataset.examId;
-            const button = e.target;
-            button.textContent = 'Gözləyin...';
-            button.style.pointerEvents = 'none';
-
-            fetch('/api/create-payment-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ examId: examId })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.paymentUrl) {
-                    window.location.href = data.paymentUrl;
-                } else {
-                    alert('Xəta: ' + (data.error || 'Naməlum xəta'));
-                    button.textContent = 'İştirak Et';
-                    button.style.pointerEvents = 'auto';
-                }
-            })
-            .catch(err => {
-                alert('Ödənişə başlamaq mümkün olmadı. Zəhmət olmasa, səhifəni yeniləyib təkrar yoxlayın.');
-                button.textContent = 'İştirak Et';
-                button.style.pointerEvents = 'auto';
-            });
-        }
-    });
+    
+    // Artıq burada 'click' listener-ə ehtiyac yoxdur, çünki linklər birbaşa düzgün ünvana aparır.
+    // Ona görə köhnə container.addEventListener bloku tamamilə silindi.
 });
