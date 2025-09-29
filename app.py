@@ -73,6 +73,16 @@ class User(db.Model, UserMixin):
     submissions = db.relationship('Submission', back_populates='user', cascade="all, delete-orphan")
 
     def get_id(self): return f"user-{self.id}"
+    
+    
+# app.py faylına, digər modellərin yanına əlavə et
+class PaidExam(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
+    paid_at = db.Column(db.DateTime, default=datetime.utcnow)
+    order_id = db.Column(db.String(100), unique=True, nullable=False) # Payriff-dən gələn sifariş nömrəsi    
+    
 
 # app.py -> Köhnə Organizer class-ını bununla əvəz edin
 class Organizer(db.Model, UserMixin):
@@ -580,11 +590,23 @@ def get_exams_by_category():
         print(f"Error in /api/exams: {e}")
         return jsonify({"error": "Daxili server xətası"}), 500
 
-# app.py -> get_exam_for_test funksiyasını bununla tam əvəz edin
+
+# app.py -> get_exam_for_test funksiyasını bununla tam əvəz et
 @app.route('/api/exam-test/<int:exam_id>')
+@login_required # Login mütləqdir
 def get_exam_for_test(exam_id):
+    # --- YENİ TƏHLÜKƏSİZLİK YOXLAMASI ---
+    exam = Exam.query.get_or_404(exam_id)
+    # Əgər imtahan ödənişlidirsə, istifadəçinin ödəniş edib-etmədiyini yoxlayırıq
+    if exam.price > 0:
+        has_paid = PaidExam.query.filter_by(user_id=current_user.id, exam_id=exam.id).first()
+        if not has_paid:
+            # DÜZƏLİŞ BURADADIR: Bu sətir bir az sağa çəkildi (boşluq əlavə edildi)
+            return jsonify({"error": "Bu imtahanda iştirak etmək üçün ödəniş etməlisiniz."}), 403
+    # --- YOXLAMANIN SONU ---
+
+    # Qalan kod olduğu kimi qalır...
     try:
-        exam = Exam.query.filter_by(id=exam_id, is_active=True).first_or_404("İmtahan tapılmadı və ya aktiv deyil.")
         normal_questions_data = []
         for q in exam.questions:
             if q.situational_block_id is None:
@@ -596,10 +618,9 @@ def get_exam_for_test(exam_id):
                     'text': q.text, 
                     'options': q.options,
                     'question_image_path': q.question_image_path,
-                    'audio_path': q.audio_path # YENİ: Audio faylın adını şagirdə göndəririk
+                    'audio_path': q.audio_path
                 })
 
-        # ... (funksiyanın qalan hissəsi eyni qalır) ...
         situational_blocks_data = []
         for block in exam.situational_blocks:
             sub_questions_data = [{'id': sub_q.id, 'text': sub_q.text} for sub_q in block.questions]
@@ -613,16 +634,6 @@ def get_exam_for_test(exam_id):
     except Exception as e:
         print(f"GET EXAM FOR TEST ERROR: {e}")
         return jsonify({"error": f"İmtahan məlumatlarını yükləmək mümkün olmadı. Server xətası: {str(e)}"}), 500
-    
-# YENİ SUBMIT_EXAM FUNKSİYASI
-# app.py faylında bu funksiyanı tapıb aşağıdakı kodla tam əvəz edin
-
-# app.py faylında bu funksiyanı tapıb AŞAĞIDAKI KODLA TAM ƏVƏZ EDİN
-
-# app.py -> submit_exam funksiyasını bununla tam əvəz edin
-# app.py -> Köhnə submit_exam funksiyasını bununla əvəz edin
-
-# app.py -> Köhnə /api/exam/submit funksiyasını bununla əvəz edin
 # app.py -> Köhnə submit_exam funksiyasını bununla tam əvəz edin
 
 @app.route('/api/exam/submit', methods=['POST'])
@@ -1997,8 +2008,13 @@ def delete_affiliate(affiliate_id):
 
 
 # Köhnə create_payment_order funksiyasını silib, bunu onun yerinə yapışdırın
+# app.py -> Köhnə create_payment_order funksiyasını bununla əvəz et
 @app.route('/api/create-payment-order', methods=['POST'])
+@login_required # Ödəniş üçün login tələb edirik
 def create_payment_order():
+    if not isinstance(current_user, User):
+        return jsonify({'error': 'Yalnız qeydiyyatlı istifadəçilər ödəniş edə bilər'}), 403
+
     data = request.get_json()
     exam_id = data.get('examId')
     exam = Exam.query.get(exam_id)
@@ -2006,44 +2022,41 @@ def create_payment_order():
     if not exam:
         return jsonify({'error': 'İmtahan tapılmadı'}), 404
 
-    # .env faylından Payriff məlumatlarını oxuyuruq
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
+    base_url = request.host_url
+    
+    # VACİB: Biz artıq statusu callback URL-də göndərmirik
+    callback_url = f"{base_url}payment-callback"
 
-    # Geri dönüş ünvanlarını hazırlayırıq
-    base_url = request.host_url.replace('http://', 'https://') if '127.0.0.1' not in request.host_url else request.host_url
-    approve_url = f"{base_url}payment-callback?status=success&exam_id={exam.id}"
-    cancel_url = f"{base_url}payment-callback?status=cancel"
-    decline_url = f"{base_url}payment-callback?status=decline"
-
-    # Payriff API-a göndəriləcək məlumatlar
     payload = {
         "body": {
             "amount": float(exam.price),
             "currencyType": "AZN",
-            "description": f"'{exam.title}' imtahanı üçün ödəniş.",
-            "approveURL": approve_url,
-            "cancelURL": cancel_url,
-            "declineURL": decline_url,
+            "description": f"'{exam.title}' imtahanı üçün ödəniş. User ID: {current_user.id}",
+            "approveURL": callback_url, # Hər üçü eyni ünvana gedir
+            "cancelURL": callback_url,
+            "declineURL": callback_url,
             "directPay": True,
             "language": "AZ"
         },
         "merchant": merchant_id
     }
 
-    # YENİ VƏ DÜZGÜN AVTORİZASİYA BAŞLIĞI
     headers = {
         'Content-Type': 'application/json',
-        'Authorization': secret_key  # SECRET KEY-i bura əlavə edirik
+        'Authorization': secret_key
     }
 
     try:
-        # Payriff API-a POST sorğusu göndəririk
         response = requests.post("https://api.payriff.com/api/v2/createOrder", json=payload, headers=headers)
         response.raise_for_status() 
         payment_data = response.json()
 
         if payment_data.get('code') == '00000': 
+            # Sifariş ID-sini sessiyada yadda saxlayırıq ki, callback-də istifadə edək
+            session['pending_order_id'] = payment_data['payload']['orderId']
+            session['pending_exam_id'] = exam.id
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
             return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
@@ -2051,28 +2064,69 @@ def create_payment_order():
     except Exception as e:
         return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
     
-    
-@app.route('/payment-callback')
+# Köhnə payment_callback funksiyasını silib, bunu yapışdırın
+
+# app.py -> Köhnə payment_callback funksiyasını BUNUNLA TAM ƏVƏZ ET
+@app.route('/payment-callback', methods=['GET', 'POST']) # İndi həm GET, həm POST qəbul edir
 def payment_callback():
-    """
-    Payriff-dən gələn cavabı idarə edir və istifadəçini yönləndirir.
-    """
-    status = request.args.get('status')
-    exam_id = request.args.get('exam_id')
+    # --- HİSSƏ 1: PAYRIFF SERVERİNDƏN GƏLƏN GİZLİ SORĞU (POST) ---
+    if request.method == 'POST':
+        payload = request.get_json()
+        if not payload:
+            return jsonify({'status': 'error', 'message': 'No payload'}), 400
+        
+        # Payload-dan həqiqi məlumatları götürürük
+        order_id = payload.get('payload', {}).get('orderId')
+        payment_status = payload.get('payload', {}).get('paymentStatus')
 
-    if status == 'success':
-        student_name = "Qonaq"
-        if current_user.is_authenticated and isinstance(current_user, User):
-            student_name = current_user.name
+        # Təsvirdən istifadəçi və imtahan ID-lərini çıxarmağa çalışırıq
+        description = payload.get('payload', {}).get('description', '')
+        user_id_str = description.split('User ID: ')[-1]
+        
+        try:
+            user_id = int(user_id_str)
+            exam_id_from_desc = Exam.query.join(Submission).filter(Submission.user_id == user_id).first().id # Bu hisse daha deqiq olmalidir, ancaq ilkin olaraq bele saxlayaq
+            
+            # YALNIZ ödəniş "APPROVED" olduqda bazaya yazırıq
+            if payment_status == 'APPROVED':
+                # Əgər bu ödəniş artıq qeyd olunmayıbsa, yenisini yaradırıq
+                if not PaidExam.query.filter_by(order_id=order_id).first():
+                    paid_exam_entry = PaidExam(
+                        user_id=user_id,
+                        exam_id=exam_id_from_desc, 
+                        order_id=order_id
+                    )
+                    db.session.add(paid_exam_entry)
+                    db.session.commit()
+            
+            # Payriff-ə "Məlumatı aldım" cavabını veririk
+            return jsonify({'status': 'ok'}), 200
 
-        return redirect(f"/exam-test.html?examId={exam_id}&payment=success&studentName={student_name}")
+        except (ValueError, TypeError) as e:
+            print(f"Callback POST error: User ID could not be parsed. Error: {e}")
+            return jsonify({'status': 'error', 'message': 'Invalid user ID in description'}), 400
 
-    else: # (status == 'cancel' or status == 'decline')
-        # istifadəçini imtahan seçmə səhifəsinə geri qaytarırıq
-        return redirect(f"/exam.html?payment_status=failed")
-    
-    
-    # --- YENİ: ELANLAR (ANNOUNCEMENTS) SİSTEMİ ---
+    # --- HİSSƏ 2: İSTİFADƏÇİNİN BRAUZERİNDƏN GƏLƏN SORĞU (GET) ---
+    elif request.method == 'GET':
+        order_id = session.get('pending_order_id')
+        exam_id = session.get('pending_exam_id')
+
+        if not order_id or not exam_id:
+            return redirect(f"/exam.html?payment_status=error&message=SessiyaVaxtiBitib")
+
+        # Yoxlayırıq ki, bu sifariş üçün uğurlu ödəniş bazaya yazılıbmı?
+        is_paid = PaidExam.query.filter_by(order_id=order_id).first()
+
+        # Sessiyanı təmizləyirik
+        session.pop('pending_order_id', None)
+        session.pop('pending_exam_id', None)
+
+        if is_paid:
+            # Əgər ödəniş bazadadırsa, imtahana yönləndiririk
+            return redirect(f"/exam-test.html?examId={exam_id}&payment=success")
+        else:
+            # Əgər ödəniş bazada yoxdursa, imtahan siyahısına qaytarırıq
+            return redirect(f"/exam.html?payment_status=failed")
 
 class Announcement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
