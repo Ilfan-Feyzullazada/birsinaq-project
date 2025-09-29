@@ -1,5 +1,3 @@
-// exam-list.js faylının YENİ və DÜZGÜN versiyası
-
 document.addEventListener('DOMContentLoaded', () => {
     const examListContainer = document.querySelector('.exam-list');
     const titleElement = document.getElementById('exam-list-title');
@@ -16,11 +14,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // `credentials: 'include'` əlavə etdik ki, login məlumatları da getsin
+    // Backend-dən imtahan siyahısını çəkirik
     fetch(`/api/exams?type=${encodeURIComponent(examType)}&grade=${encodeURIComponent(examGrade)}`, { credentials: 'include' })
         .then(response => {
-            if (!response.ok) {
-                throw new Error('Server cavab vermir');
+            // Əgər istifadəçi daxil olmayıbsa (401 xətası), login səhifəsinə yönləndiririk
+            if (!response.ok) { 
+                window.location.href = 'login.html';
+                throw new Error('Giriş edilməyib');
             }
             return response.json();
         })
@@ -38,15 +38,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 let actionHTML;
                 const priceText = exam.price > 0 ? `${exam.price.toFixed(2)} AZN` : 'Pulsuz';
 
-                if (exam.is_taken) {
-                    // Əgər istifadəçi artıq imtahanı veribsə
-                    actionHTML = `<a href="result.html?submission_id=${exam.submission_id}" class="result-btn">Nəticəyə Bax</a>`;
-                } else if (exam.price <= 0) {
-                    // Əgər imtahan pulsuzdursa
-                    actionHTML = `<a href="exam-test.html?examId=${exam.id}" class="participate-btn">İştirak Et</a>`;
+                // === ƏSAS DƏYİŞİKLİK BURADADIR ===
+                // Backend-dən gələn `is_paid` statusunu yoxlayırıq
+                if (exam.is_paid || exam.price <= 0) {
+                    // Əgər ödənilibsə və ya pulsuzdursa, birbaşa imtahana keçid veririk
+                    actionHTML = `<a href="exam-test.html?examId=${exam.id}" class="start-btn">İmtahana Başla</a>`;
                 } else {
-                    // Əgər imtahan ödənişlidirsə, ödəniş səhifəsinə yönləndiririk
-                    actionHTML = `<a href="exam-payment.html?examId=${exam.id}&price=${exam.price}" class="payment-btn">İştirak Et</a>`;
+                    // Əgər ödənilməyibsə, ödəniş düyməsini göstəririk
+                    actionHTML = `<a href="#" class="payment-btn" data-exam-id="${exam.id}">İştirak Et (${priceText})</a>`;
                 }
 
                 examItem.innerHTML = `
@@ -55,7 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <p>Təşkilatçı: BirSınaq</p>
                     </div>
                     <div class="exam-actions">
-                        <span class="exam-price">${priceText}</span>
                         ${actionHTML}
                     </div>
                 `;
@@ -64,9 +62,42 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch(error => {
             console.error('İmtahanları yükləyərkən xəta:', error);
-            examListContainer.innerHTML = '<p style="text-align: center; color: red;">İmtahanları yükləmək mümkün olmadı.</p>';
+            // "Giriş edilməyib" xətasıdırsa, səhifədə əlavə mesaj göstərməyə ehtiyac yoxdur
+            if (error.message !== 'Giriş edilməyib') {
+                examListContainer.innerHTML = '<p style="text-align: center; color: red;">İmtahanları yükləmək mümkün olmadı.</p>';
+            }
         });
-    
-    // Artıq burada 'click' listener-ə ehtiyac yoxdur, çünki linklər birbaşa düzgün ünvana aparır.
-    // Ona görə köhnə container.addEventListener bloku tamamilə silindi.
+
+    // Ödəniş düyməsinə klik hadisəsi (bu hissə düzgündür)
+    examListContainer.addEventListener('click', (e) => {
+        if (e.target.classList.contains('payment-btn') && e.target.dataset.examId) {
+            e.preventDefault();
+            const examId = e.target.dataset.examId;
+            const button = e.target;
+            button.textContent = 'Gözləyin...';
+            button.disabled = true;
+
+            fetch('/api/create-payment-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ examId: examId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.paymentUrl) {
+                    window.location.href = data.paymentUrl;
+                } else {
+                    alert('Xəta: ' + (data.error || 'Naməlum xəta'));
+                    button.textContent = `İştirak Et`;
+                    button.disabled = false;
+                }
+            })
+            .catch(err => {
+                alert('Ödənişə başlamaq mümkün olmadı.');
+                button.textContent = `İştirak Et`;
+                button.disabled = false;
+            });
+        }
+    });
 });

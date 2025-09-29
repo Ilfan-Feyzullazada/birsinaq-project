@@ -1,28 +1,5 @@
-// exam.js - Uğursuz ödəniş üçün xəbərdarlıq əlavə edilib
-
+// exam.js - Dinamik olaraq imtahan növlərini və sinifləri backend-dən yükləyir
 document.addEventListener('DOMContentLoaded', () => {
-    
-    // ==================================================================
-    // YENİ ƏLAVƏ EDİLMİŞ HİSSƏ: Uğursuz ödəniş üçün xəbərdarlıq
-    // ==================================================================
-    const alertUrlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = alertUrlParams.get('payment_status');
-
-    if (paymentStatus === 'failed') {
-        alert('Ödəniş uğursuz oldu. Balansınızda kifayət qədər vəsait olduğundan əmin olun və ya başqa kartla cəhd edin.');
-        
-        // URL-i təmizləyirik ki, səhifə yenilənəndə eyni xəbərdarlıq təkrar çıxmasın
-        if (window.history.replaceState) {
-            const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({path: cleanUrl}, '', cleanUrl);
-        }
-    }
-    // ==================================================================
-    // YENİ HİSSƏNİN SONU
-    // ==================================================================
-
-
-    // Mövcud kodun olduğu kimi qalır
     const container = document.querySelector('.exam-card-container');
 
     fetch('/api/exams/categories')
