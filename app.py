@@ -76,14 +76,15 @@ class User(db.Model, UserMixin):
     def get_id(self): return f"user-{self.id}"
     
     
-# app.py faylına, digər modellərin yanına əlavə et
+# app.py -> Köhnə PaidExam klassını bununla əvəz et
 class PaidExam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
-    paid_at = db.Column(db.DateTime, default=datetime.utcnow)
-    order_id = db.Column(db.String(100), unique=True, nullable=False) # Payriff-dən gələn sifariş nömrəsi    
-    
+    order_id = db.Column(db.String(100), unique=True, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='PENDING') # PENDING, APPROVED, FAILED
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    paid_at = db.Column(db.DateTime, nullable=True)
 
 # app.py -> Köhnə Organizer class-ını bununla əvəz edin
 class Organizer(db.Model, UserMixin):
@@ -2088,77 +2089,56 @@ def create_payment_order():
 
 # app.py -> Köhnə payment_callback funksiyasını BUNUNLA TAM ƏVƏZ ET
 
+# app.py -> Köhnə payment_callback funksiyasını BUNUNLA TAM ƏVƏZ ET
+# app.py -> Köhnə payment_callback funksiyasını BUNUNLA TAM ƏVƏZ ET
 @app.route('/payment-callback', methods=['GET', 'POST'])
 def payment_callback():
     # --- HİSSƏ 1: PAYRIFF SERVERİNDƏN GƏLƏN GİZLİ SORĞU (POST) ---
     if request.method == 'POST':
         try:
-            payload = request.get_json(force=True) # force=True əlavə etdik, hər ehtimala qarşı
-            
+            payload = request.get_json(force=True)
             order_id = payload.get('payload', {}).get('orderId')
             payment_status = payload.get('payload', {}).get('paymentStatus')
-            description = payload.get('payload', {}).get('description', '')
-            
-            # Təsvirdən istifadəçi ID-sini daha etibarlı şəkildə çıxarırıq
-            user_id = None
-            if 'User ID:' in description:
-                try:
-                    # Rəqəmləri tapmaq üçün daha etibarlı yol
-                    import re
-                    match = re.search(r'User ID: (\d+)', description)
-                    if match:
-                        user_id = int(match.group(1))
-                except (ValueError, TypeError):
-                    print(f"Callback POST error: User ID could not be parsed from description '{description}'")
 
-            # POST sorğusunun URL-indən exam_id-ni götürürük
-            exam_id = request.args.get('exam_id')
-
-            # YALNIZ ödəniş "APPROVED" olduqda və məlumatlar tam olduqda bazaya yazırıq
-            if payment_status == 'APPROVED' and user_id and exam_id:
-                if not PaidExam.query.filter_by(order_id=order_id).first():
-                    paid_exam_entry = PaidExam(
-                        user_id=user_id,
-                        exam_id=int(exam_id), 
-                        order_id=order_id
-                    )
-                    db.session.add(paid_exam_entry)
+            if order_id:
+                payment_record = PaidExam.query.filter_by(order_id=order_id).first()
+                if payment_record:
+                    if payment_status == 'APPROVED':
+                        payment_record.status = 'APPROVED'
+                        payment_record.paid_at = datetime.utcnow()
+                    else:
+                        payment_record.status = 'FAILED'
                     db.session.commit()
-                    print(f"UĞURLU ÖDƏNİŞ QEYDƏ ALINDI: user_id={user_id}, exam_id={exam_id}, order_id={order_id}")
-            
             return jsonify({'status': 'ok'}), 200
-
         except Exception as e:
             print(f"PAYRIFF POST CALLBACK XƏTASI: {e}")
             return jsonify({'status': 'error'}), 500
 
     # --- HİSSƏ 2: İSTİFADƏÇİNİN BRAUZERİNDƏN GƏLƏN SORĞU (GET) ---
     elif request.method == 'GET':
-        order_id = session.get('pending_order_id')
-        exam_id = session.get('pending_exam_id')
+        order_id = request.args.get('orderId')
+        exam_id = request.args.get('exam_id')
 
         if not order_id or not exam_id:
-            return redirect(f"/exam.html?payment_status=error&message=SessiyaVaxtiBitib")
+            return redirect(f"/exam.html?payment_status=error&message=SifarisMelumatlariTapilmadi")
 
-        is_paid = None
-        # Gözləmə müddətini bir az da artırırıq, hər ehtimala qarşı
-        for _ in range(12): 
-            is_paid = PaidExam.query.filter_by(order_id=order_id).first()
-            if is_paid:
-                break 
+        is_approved = False
+        # DƏYİŞİKLİK: Gözləmə müddətini 5 saniyəyə endirdik
+        for _ in range(5):
+            payment_record = PaidExam.query.filter_by(order_id=order_id, status='APPROVED').first()
+            if payment_record:
+                is_approved = True
+                break
             time.sleep(1) 
 
-        session.pop('pending_order_id', None)
-        session.pop('pending_exam_id', None)
-
-        if is_paid:
+        if is_approved:
             student_name = "Qonaq"
             if current_user.is_authenticated and isinstance(current_user, User):
                 student_name = current_user.name
             return redirect(f"/exam-test.html?examId={exam_id}&payment=success&studentName={student_name}")
         else:
             return redirect(f"/exam.html?payment_status=failed")
-
+        
 class Announcement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
