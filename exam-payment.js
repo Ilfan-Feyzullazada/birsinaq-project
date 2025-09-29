@@ -1,5 +1,3 @@
-// exam-payment.js faylının içindəki hər şeyi silib bunu yapışdırın
-
 document.addEventListener('DOMContentLoaded', () => {
     const paymentForm = document.getElementById('payment-form');
     const priceDisplay = document.getElementById('exam-price-display');
@@ -23,6 +21,18 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault(); // Formanın standart göndərilməsinin qarşısını alırıq
 
         const submitBtn = paymentForm.querySelector('.submit-btn');
+        
+        // YENİ: Qonaq məlumatlarını formadan götürürük
+        const studentName = document.getElementById('name').value;
+        const studentEmail = document.getElementById('email').value;
+        const contact = document.getElementById('contact').value;
+
+        // YENİ: Sadə yoxlama ki, form boş olmasın
+        if (!studentName || !contact || !studentEmail) {
+            alert('Zəhmət olmasa, bütün sahələri doldurun.');
+            return;
+        }
+
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gözləyin...'; // İstifadəçiyə prosesin getdiyini göstəririk
 
@@ -33,7 +43,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ examId: examId })
+                // DƏYİŞİKLİK: Qonaq məlumatlarını da backend-ə göndəririk
+                body: JSON.stringify({ 
+                    examId: examId,
+                    studentName: studentName,
+                    studentEmail: studentEmail
+                })
             });
 
             const data = await response.json();

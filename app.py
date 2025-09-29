@@ -2015,33 +2015,49 @@ def delete_affiliate(affiliate_id):
 
 
 # Köhnə create_payment_order funksiyasını silib, bunu onun yerinə yapışdırın
-# app.py -> Köhnə create_payment_order funksiyasını bununla əvəz et
-@app.route('/api/create-payment-order', methods=['POST'])
-@login_required # Ödəniş üçün login tələb edirik
-def create_payment_order():
-    if not isinstance(current_user, User):
-        return jsonify({'error': 'Yalnız qeydiyyatlı istifadəçilər ödəniş edə bilər'}), 403
+# app.py -> Köhnə create_payment_order funksiyasını bununla tam əvəz et
 
+@app.route('/api/create-payment-order', methods=['POST'])
+def create_payment_order():
     data = request.get_json()
     exam_id = data.get('examId')
     exam = Exam.query.get(exam_id)
 
     if not exam:
         return jsonify({'error': 'İmtahan tapılmadı'}), 404
+        
+    # Qonaq və ya qeydiyyatlı istifadəçi məlumatlarını təyin edirik
+    user_id_for_description = "guest"
+    if current_user.is_authenticated and isinstance(current_user, User):
+        user_id_for_description = current_user.id
+        # Sessiyaya istifadəçi məlumatını da əlavə edirik
+        session['payment_user_id'] = current_user.id
+    else:
+        # Qonaq üçün unikal bir "qonaq ID" yaradırıq ki, onu izləyə bilək
+        guest_id = str(uuid.uuid4())
+        session['payment_guest_id'] = guest_id
+        # Qonağın adını və emailini də sessiyada saxlayaq
+        session['guest_name'] = data.get('studentName')
+        session['guest_email'] = data.get('studentEmail')
+
 
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
     base_url = request.host_url
     
-    # VACİB: Biz artıq statusu callback URL-də göndərmirik
     callback_url = f"{base_url}payment-callback"
+    
+    # Təsvirə istifadəçi ID-sini və ya "guest" sözünü əlavə edirik
+    description = f"'{exam.title}' imtahanı üçün ödəniş. User ID: {user_id_for_description}"
+    if not current_user.is_authenticated:
+        description += f", Guest ID: {session['payment_guest_id']}"
 
     payload = {
         "body": {
             "amount": float(exam.price),
             "currencyType": "AZN",
-            "description": f"'{exam.title}' imtahanı üçün ödəniş. User ID: {current_user.id}",
-            "approveURL": callback_url, # Hər üçü eyni ünvana gedir
+            "description": description,
+            "approveURL": callback_url,
             "cancelURL": callback_url,
             "declineURL": callback_url,
             "directPay": True,
@@ -2057,21 +2073,17 @@ def create_payment_order():
 
     try:
         response = requests.post("https://api.payriff.com/api/v2/createOrder", json=payload, headers=headers)
-        response.raise_for_status() 
+        response.raise_for_status()
         payment_data = response.json()
 
-        if payment_data.get('code') == '00000': 
-            # Sifariş ID-sini sessiyada yadda saxlayırıq ki, callback-də istifadə edək
+        if payment_data.get('code') == '00000':
             session['pending_order_id'] = payment_data['payload']['orderId']
             session['pending_exam_id'] = exam.id
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
             return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
-
     except Exception as e:
         return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
-    
-# Köhnə payment_callback funksiyasını silib, bunu yapışdırın
 
 # app.py -> Köhnə payment_callback funksiyasını BUNUNLA TAM ƏVƏZ ET
 @app.route('/payment-callback', methods=['GET', 'POST']) # İndi həm GET, həm POST qəbul edir
