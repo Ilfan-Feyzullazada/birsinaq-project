@@ -544,17 +544,27 @@ def profile():
         'submission_history': submission_history
     })
 
+# app.py -> Köhnə get_exam_categories funksiyasını bununla əvəz edin
+
 @app.route('/api/exams/categories')
 def get_exam_categories():
     try:
         active_exams = Exam.query.filter_by(is_active=True).all()
         categories = defaultdict(set)
         for exam in active_exams:
-            categories[exam.exam_type.name].add(exam.class_name.name)
+            # === ƏSAS DÜZƏLİŞ BURADADIR ===
+            # Yalnız növü və sinfi olan imtahanları nəzərə alırıq
+            if exam.exam_type and exam.class_name:
+                categories[exam.exam_type.name].add(exam.class_name.name)
+        
         result = {key: sorted(list(value)) for key, value in categories.items()}
         return jsonify(result)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # Xəta baş verərsə, loqa daha ətraflı məlumat yazırıq
+        print(f"ERROR in /api/exams/categories: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Daxili server xətası"}), 500
 
 # app.py -> Köhnə /api/exams funksiyasını bununla əvəz edin
 @app.route('/api/exams')
