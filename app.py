@@ -2019,6 +2019,8 @@ def delete_affiliate(affiliate_id):
 # Köhnə create_payment_order funksiyasını silib, bunu onun yerinə yapışdırın
 # app.py -> Köhnə create_payment_order funksiyasını bununla tam əvəz et
 
+# app.py -> Köhnə create_payment_order funksiyasını bu yekun versiya ilə tam əvəz edin
+
 @app.route('/api/create-payment-order', methods=['POST'])
 def create_payment_order():
     data = request.get_json()
@@ -2027,42 +2029,26 @@ def create_payment_order():
 
     if not exam:
         return jsonify({'error': 'İmtahan tapılmadı'}), 404
-        
-    # Qonaq və ya qeydiyyatlı istifadəçi məlumatlarını təyin edirik
-    user_id_for_description = "guest"
-    if current_user.is_authenticated and isinstance(current_user, User):
-        user_id_for_description = current_user.id
-        # Sessiyaya istifadəçi məlumatını da əlavə edirik
-        session['payment_user_id'] = current_user.id
-    else:
-        # Qonaq üçün unikal bir "qonaq ID" yaradırıq ki, onu izləyə bilək
-        guest_id = str(uuid.uuid4())
-        session['payment_guest_id'] = guest_id
-        # Qonağın adını və emailini də sessiyada saxlayaq
-        session['guest_name'] = data.get('studentName')
-        session['guest_email'] = data.get('studentEmail')
 
+    user_id = None
+    if current_user.is_authenticated and isinstance(current_user, User):
+        user_id = current_user.id
 
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
     base_url = request.host_url
-    
-    # YENİ KOD (Düzgün):
-    callback_url = f"{base_url}payment-callback?exam_id={exam.id}"
-    
-    # Təsvirə istifadəçi ID-sini və ya "guest" sözünü əlavə edirik
-    description = f"'{exam.title}' imtahanı üçün ödəniş. User ID: {user_id_for_description}"
-    if not current_user.is_authenticated:
-        description += f", Guest ID: {session['payment_guest_id']}"
+
+    callback_url = f"{base_url}payment-callback" # URL təmiz olmalıdır
+    description = f"'{exam.title}' imtahanı üçün ödəniş."
 
     payload = {
         "body": {
             "amount": float(exam.price),
             "currencyType": "AZN",
             "description": description,
-            "approveURL": callback_url,
-            "cancelURL": callback_url,
-            "declineURL": callback_url,
+            "approveURL": callback_url, # ?status=... silindi
+            "cancelURL": callback_url,  # ?status=... silindi
+            "declineURL": callback_url, # ?status=... silindi
             "directPay": True,
             "language": "AZ"
         },
@@ -2080,22 +2066,39 @@ def create_payment_order():
         payment_data = response.json()
 
         if payment_data.get('code') == '00000':
-            session['pending_order_id'] = payment_data['payload']['orderId']
+            order_id = payment_data['payload']['orderId']
+
+            # ƏSAS HƏLL YOLU: Ödəniş cəhdini "PENDING" statusu ilə bazaya yazırıq
+            new_paid_exam = PaidExam(
+                user_id=user_id,
+                exam_id=exam.id,
+                order_id=order_id,
+                status='PENDING'
+            )
+            db.session.add(new_paid_exam)
+            db.session.commit()
+
+            session['pending_order_id'] = order_id
             session['pending_exam_id'] = exam.id
+            if not user_id:
+                session['guest_name'] = data.get('studentName')
+                session['guest_email'] = data.get('studentEmail')
+
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
             return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
 
 # app.py -> Köhnə payment_callback funksiyasını BUNUNLA TAM ƏVƏZ ET
+# app.py -> Köhnə payment_callback funksiyasını BUNUNLA TAM ƏVƏZ ET
 
-# app.py -> Köhnə payment_callback funksiyasını BUNUNLA TAM ƏVƏZ ET
-# app.py -> Köhnə payment_callback funksiyasını BUNUNLA TAM ƏVƏZ ET
+# app.py -> Köhnə payment_callback funksiyasını bu yekun versiya ilə tam əvəz edin
 
 @app.route('/payment-callback', methods=['GET', 'POST'])
 def payment_callback():
-    # --- HİSSƏ 1: PAYRIFF SERVERİNDƏN GƏLƏN GİZLİ SORĞU (POST) ---
+    # HİSSƏ 1: PAYRIFF SERVERİNDƏN GƏLƏN GİZLİ POST SORĞUSU (WEBHOOK)
     if request.method == 'POST':
         try:
             payload = request.get_json(force=True)
@@ -2116,18 +2119,16 @@ def payment_callback():
             print(f"PAYRIFF POST CALLBACK XƏTASI: {e}")
             return jsonify({'status': 'error'}), 500
 
-    # --- HİSSƏ 2: İSTİFADƏÇİNİN BRAUZERİNDƏN GƏLƏN SORĞU (GET) ---
+    # HİSSƏ 2: İSTİFADƏÇİNİN BRAUZERİNDƏN GƏLƏN GET SORĞUSU
     elif request.method == 'GET':
-        # DÜZƏLİŞ BURADADIR: Məlumatları linkdən yox, birbaşa SESSİYADAN götürürük
         order_id = session.get('pending_order_id')
         exam_id = session.get('pending_exam_id')
 
         if not order_id or not exam_id:
-            # Bu xəta sessiyada problem olarsa görünəcək
-            return redirect(f"/exam.html?payment_status=error&message=SessiyaXetasi")
+            return redirect(f"/exam.html?payment_status=failed&message=SessiyaXetasi")
 
-        is_paid = None
-        # DÜZƏLİŞ: Sənin istədiyin kimi, gözləmə müddətini 5 saniyəyə endirdik
+        is_paid = False
+        # 5 saniyə ərzində bazanı yoxlayırıq ki, POST sorğusu gəlib statusu yeniləyibmi
         for _ in range(5): 
             payment_record = PaidExam.query.filter_by(order_id=order_id, status='APPROVED').first()
             if payment_record:
@@ -2135,16 +2136,20 @@ def payment_callback():
                 break
             time.sleep(1) 
 
-        # Sessiyanı təmizləyirik ki, təkrar istifadə olunmasın
+        # Hansı halda olursa olsun, sessiyanı təmizləyirik
         session.pop('pending_order_id', None)
         session.pop('pending_exam_id', None)
 
         if is_paid:
-            student_name = "Qonaq"
-            if current_user.is_authenticated and isinstance(current_user, User):
-                student_name = current_user.name
-            return redirect(f"/exam-test.html?examId={exam_id}&payment=success&studentName={student_name}")
+            redirect_url = f"/exam-test.html?examId={exam_id}&payment=success"
+            if not (current_user.is_authenticated and isinstance(current_user, User)):
+                 student_name = session.pop('guest_name', 'Qonaq')
+                 student_email = session.pop('guest_email', '')
+                 redirect_url += f"&studentName={student_name}&studentEmail={student_email}"
+            return redirect(redirect_url)
         else:
+            session.pop('guest_name', None)
+            session.pop('guest_email', None)
             return redirect(f"/exam.html?payment_status=failed")
         
 class Announcement(db.Model):
