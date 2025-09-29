@@ -2047,7 +2047,8 @@ def create_payment_order():
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
     base_url = request.host_url
     
-    callback_url = f"{base_url}payment-callback"
+    # YENİ KOD (Düzgün):
+    callback_url = f"{base_url}payment-callback?exam_id={exam.id}"
     
     # Təsvirə istifadəçi ID-sini və ya "guest" sözünü əlavə edirik
     description = f"'{exam.title}' imtahanı üçün ödəniş. User ID: {user_id_for_description}"
