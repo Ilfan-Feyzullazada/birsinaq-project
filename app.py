@@ -500,17 +500,24 @@ def get_all_exams():
     exam_list = [{'id': exam.id, 'name': exam.name, 'is_active': exam.is_active, 'question_count': len(exam.questions)} for exam in exams]
     return jsonify(exam_list)
 
+# app.py -> Köhnə delete_exam funksiyasını bununla əvəz edin
 @app.route('/api/admin/exams/<int:exam_id>', methods=['DELETE'])
 @login_required
 def delete_exam(exam_id):
     if not isinstance(current_user, Admin):
         return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+    
     exam = Exam.query.get_or_404(exam_id)
+    
     try:
-        Submission.query.filter_by(exam_id=exam.id).delete()
+        # Əvvəlcə bu imtahana aid olan bütün asılı məlumatları silirik
+        PaymentOrder.query.filter_by(exam_id=exam_id).delete()
+        Submission.query.filter_by(exam_id=exam_id).delete()
+        
+        # Sonra imtahanın özünü silirik
         db.session.delete(exam)
         db.session.commit()
-        return jsonify({'message': 'İmtahan və ona bağlı bütün nəticələr uğurla silindi!'})
+        return jsonify({'message': 'İmtahan və ona bağlı bütün nəticələr/sifarişlər uğurla silindi!'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'message': f'Xəta baş verdi: {str(e)}'}), 500
@@ -524,6 +531,70 @@ def get_exam_meta():
         'classNames': [{'id': cn.id, 'name': cn.name} for cn in ClassName.query.all()],
         'subjects': [{'id': s.id, 'name': s.name} for s in Subject.query.all()]
     })
+
+
+# app.py -> FAYLIN SONUNA ƏLAVƏ EDİN
+
+from flask import url_for, render_template
+
+@app.route('/payment/complete', methods=['GET', 'POST'])
+def payment_complete():
+    # === ADDIM 1: PAYRIFF-DƏN GƏLƏN GİZLİ TƏSDİQ SORĞUSUNU TUTMAQ (POST) ===
+    if request.method == 'POST':
+        data = request.get_json()
+        print("--- PAYRIFF POST REQUEST RECEIVED ON /payment/complete ---", data)
+        try:
+            payload = data.get('payload', {})
+            order_status = payload.get('orderStatus')
+            order_id = payload.get('orderID')
+
+            order = PaymentOrder.query.filter_by(order_id_payriff=order_id).first()
+            if not order:
+                print(f"Webhook Error: Order {order_id} not found.")
+                return jsonify({'status': 'error', 'message': 'Order not found'}), 404
+
+            if order_status == 'APPROVED':
+                order.status = 'APPROVED'
+                # Lazım gələrsə, burada komissiya balanslarını da artıra bilərik
+                print(f"Order {order_id} status updated to APPROVED.")
+            else:
+                order.status = 'FAILED'
+                print(f"Order {order_id} status updated to FAILED.")
+            
+            db.session.commit()
+            return jsonify({'status': 'ok'}), 200
+        except Exception as e:
+            db.session.rollback()
+            print(f"--- WEBHOOK CRITICAL ERROR ---: {e}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+
+    # === ADDIM 2: İSTİFADƏÇİNİ QARŞILAMAQ (GET) ===
+    # İstifadəçinin brauzeri ödənişdən sonra bu hissəyə yönlənir
+    else:
+        # URL-dən sifariş ID-sini götürməyə çalışırıq (Payriff bunu bəzən göndərir)
+        order_id = request.args.get('orderId') 
+        # Təxminən 5 saniyə gözləyirik ki, arxa plandakı POST sorğusu gəlib çatsın
+        # Bu hissəni gələcəkdə JavaScript ilə daha dinamik etmək olar
+        import time
+        time.sleep(3) # 3 saniyə gözlə
+        
+        # İstifadəçinin son sifarişini tapmağa çalışırıq
+        user_id = current_user.id if current_user.is_authenticated else None
+        guest_session_id = session.get('guest_session_id')
+        
+        last_order = PaymentOrder.query.filter(
+            (PaymentOrder.user_id == user_id) | (PaymentOrder.guest_session_id == guest_session_id)
+        ).order_by(PaymentOrder.created_at.desc()).first()
+
+        if last_order and last_order.status == 'APPROVED':
+            # Əgər ödəniş təsdiqlənibsə, birbaşa imtahana yönləndiririk
+            return redirect(url_for('serve_static_files', path=f'exam-test.html?examId={last_order.exam_id}'))
+        else:
+            # Əgər hələ təsdiqlənməyibsə və ya xəta baş veribsə, istifadəçiyə məlumat veririk
+            # Gələcəkdə burada daha gözəl bir səhifə yaratmaq olar
+            return "Ödəniş təsdiqlənməsi gözlənilir. Zəhmət olmasa bir neçə saniyə sonra səhifəni yeniləyin və ya profilinizdən imtahana daxil olun. Problem davam edərsə, bizimlə əlaqə saxlayın."
+
+
 
 # --- STUDENT & GENERAL API ---
 @app.route('/api/profile')
@@ -2027,8 +2098,12 @@ def delete_affiliate(affiliate_id):
 
 # app.py -> Köhnə create_payment_order funksiyasını bununla əvəz edin
 
+# app.py -> Köhnə create_payment_order funksiyasını bununla ƏVƏZ EDİN
+
 @app.route('/api/create-payment-order', methods=['POST'])
 def create_payment_order():
+    # ... (funksiyanın yuxarı hissəsi olduğu kimi qalır) ...
+    # ... (exam, user_id, guest_session_id təyin olunan yerə qədər) ...
     data = request.get_json()
     exam_id = data.get('examId')
     exam = Exam.query.get(exam_id)
@@ -2043,18 +2118,21 @@ def create_payment_order():
     else:
         if 'guest_session_id' not in session:
             session['guest_session_id'] = str(uuid.uuid4())
-        guest_session_id = session['guest_session_id']
+        guest_session_id = session.get('guest_session_id')
+        # Qonağın adını və emailini sessiyada saxlayaq
+        if data.get('guestName'):
+            session['guest_name'] = data.get('guestName')
+            session['guest_email'] = data.get('guestEmail')
+
 
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
-    base_url = os.environ.get('BASE_URL', request.host_url)
-
-    # === SİZİN İSTƏDİYİNİZ DƏYİŞİKLİK BURADADIR ===
-    # İstifadəçinin brauzeri ödənişdən sonra birbaşa imtahan səhifəsinə yönlənəcək.
-    approve_url = f"{base_url}exam-test.html?examId={exam.id}&payment=success"
-
-    cancel_url = f"{base_url}exam-list.html?type={exam.exam_type.name}&grade={exam.class_name.name}&payment=cancelled"
-    decline_url = f"{base_url}exam-list.html?type={exam.exam_type.name}&grade={exam.class_name.name}&payment=declined"
+    
+    # === ƏSAS DƏYİŞİKLİK BURADADIR ===
+    # Artıq hər iki sorğu (istifadəçi və Payriff siqnalı) eyni ünvana gələcək
+    approve_url = url_for('payment_complete', _external=True)
+    cancel_url = url_for('serve_static_files', path=f'exam-list.html?payment_status=cancel', _external=True)
+    decline_url = url_for('serve_static_files', path=f'exam-list.html?payment_status=decline', _external=True)
 
     payload = {
         "body": {
@@ -2069,17 +2147,14 @@ def create_payment_order():
         },
         "merchant": merchant_id
     }
-
+    # ... (funksiyanın qalan hissəsi - headers, try/except bloku olduğu kimi qalır) ...
     headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
-
     try:
         response = requests.post("https://api.payriff.com/api/v2/createOrder", json=payload, headers=headers)
         response.raise_for_status()
         payment_data = response.json()
-
         if payment_data.get('code') == '00000':
             payriff_order_id = payment_data['payload']['orderId']
-
             new_order = PaymentOrder(
                 order_id_payriff=payriff_order_id,
                 exam_id=exam.id,
@@ -2090,15 +2165,12 @@ def create_payment_order():
             )
             db.session.add(new_order)
             db.session.commit()
-
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
             return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
-
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
-    
 # app.py -> Faylın sonuna əlavə edin
 
 @app.route('/api/payriff/webhook', methods=['POST'])
@@ -2225,3 +2297,12 @@ def delete_announcement(announcement_id):
     db.session.delete(announcement)
     db.session.commit()
     return jsonify({'message': 'Elan uğurla silindi!'})
+
+
+
+# app.py -> FAYLIN ƏN SONUNA ƏLAVƏ EDİN
+
+@app.route('/test-webhook', methods=['POST'])
+def test_webhook():
+    print("!!!!!!!!!!!!!!! TEST WEBHOOK UĞURLA QƏBUL EDİLDİ !!!!!!!!!!!!!!!")
+    return jsonify({"status": "ok", "message": "Test successful!"}), 200
