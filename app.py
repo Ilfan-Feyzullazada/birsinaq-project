@@ -2036,7 +2036,6 @@ def create_payment_order():
     if not exam or exam.price <= 0:
         return jsonify({'error': 'İmtahan tapılmadı və ya ödəniş tələb olunmur'}), 404
 
-    # Qonaq istifadəçiləri üçün müvəqqəti sessiya ID-si yaradırıq
     guest_session_id = None
     user_id = None
     if current_user.is_authenticated and isinstance(current_user, User):
@@ -2049,12 +2048,13 @@ def create_payment_order():
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
     base_url = os.environ.get('BASE_URL', request.host_url)
-    
-    # DİQQƏT: approveURL artıq birbaşa imtahana yox, nəticə səhifəsinə aparır
-    # Əsl yoxlama backend-də webhook ilə olacaq
-    approve_url = f"{base_url}exam-list.html?payment_status=success"
-    cancel_url = f"{base_url}exam-list.html?payment_status=cancel"
-    decline_url = f"{base_url}exam-list.html?payment_status=decline"
+
+    # === SİZİN İSTƏDİYİNİZ DƏYİŞİKLİK BURADADIR ===
+    # İstifadəçinin brauzeri ödənişdən sonra birbaşa imtahan səhifəsinə yönlənəcək.
+    approve_url = f"{base_url}exam-test.html?examId={exam.id}&payment=success"
+
+    cancel_url = f"{base_url}exam-list.html?type={exam.exam_type.name}&grade={exam.class_name.name}&payment=cancelled"
+    decline_url = f"{base_url}exam-list.html?type={exam.exam_type.name}&grade={exam.class_name.name}&payment=declined"
 
     payload = {
         "body": {
@@ -2069,7 +2069,7 @@ def create_payment_order():
         },
         "merchant": merchant_id
     }
-    
+
     headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
 
     try:
@@ -2079,8 +2079,7 @@ def create_payment_order():
 
         if payment_data.get('code') == '00000':
             payriff_order_id = payment_data['payload']['orderId']
-            
-            # YENİ HİSSƏ: Sifarişi öz bazamıza yazırıq
+
             new_order = PaymentOrder(
                 order_id_payriff=payriff_order_id,
                 exam_id=exam.id,
@@ -2091,7 +2090,7 @@ def create_payment_order():
             )
             db.session.add(new_order)
             db.session.commit()
-            
+
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
             return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
