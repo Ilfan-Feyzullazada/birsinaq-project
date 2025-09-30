@@ -2131,7 +2131,7 @@ def create_payment_order():
     
     # === ƏSAS DƏYİŞİKLİK BURADADIR ===
     # Artıq hər iki sorğu (istifadəçi və Payriff siqnalı) eyni ünvana gələcək
-    approve_url = url_for('serve_static_files', path=f'exam-test.html?examId={exam.id}', _external=True)
+    approve_url = url_for('serve_static_files', path='exam-test.html', examId=exam.id, _external=True)
     cancel_url = url_for('serve_static_files', path=f'exam-list.html?payment_status=cancel', _external=True)
     decline_url = url_for('serve_static_files', path=f'exam-list.html?payment_status=decline', _external=True)
 
