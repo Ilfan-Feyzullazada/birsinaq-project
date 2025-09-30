@@ -1,9 +1,8 @@
-// exam-payment.js faylını bununla tam əvəz edin
 document.addEventListener('DOMContentLoaded', () => {
-    const paymentForm = document.querySelector('.payment-card form'); 
+    const paymentForm = document.getElementById('payment-form');
     const urlParams = new URLSearchParams(window.location.search);
     const examId = urlParams.get('examId');
-    const price = urlParams.get('price'); // URL-dən qiyməti alırıq
+    const price = urlParams.get('price');
 
     if (!examId) {
         alert('İmtahan ID-si tapılmadı!');
@@ -11,22 +10,43 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // Qiyməti səhifədə göstəririk
     const priceDisplay = document.getElementById('exam-price-display');
     if (priceDisplay && price) {
         priceDisplay.textContent = `${price} AZN`;
     }
 
-    if(paymentForm) {
+    if (paymentForm) {
         paymentForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            
-            // Həm adı, həm də yeni əlavə etdiyimiz e-poçtu götürürük
-            const name = document.getElementById('name').value;
-            const email = document.getElementById('email').value;
+            const button = e.target.querySelector('button[type="submit"]');
+            button.textContent = 'Gözləyin...';
+            button.disabled = true;
 
-            // URL-ə həm studentName, həm də studentEmail parametrlərini əlavə edirik
-            window.location.href = `exam-test.html?examId=${examId}&studentName=${encodeURIComponent(name)}&studentEmail=${encodeURIComponent(email)}`;
+            fetch('/api/create-payment-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    examId: examId,
+                    guestName: document.getElementById('name').value,
+                    guestEmail: document.getElementById('email').value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.paymentUrl) {
+                    window.location.href = data.paymentUrl;
+                } else {
+                    alert('Xəta: ' + (data.error || 'Naməlum xəta'));
+                    button.textContent = 'Ödəniş Et';
+                    button.disabled = false;
+                }
+            })
+            .catch(err => {
+                alert('Ödənişə başlamaq mümkün olmadı.');
+                button.textContent = 'Ödəniş Et';
+                button.disabled = false;
+            });
         });
     }
 });

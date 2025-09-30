@@ -10,6 +10,7 @@ from datetime import datetime
 from collections import defaultdict
 from datetime import timedelta
 
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask import send_from_directory
 from flask import Flask, request, jsonify, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
@@ -27,6 +28,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 # --- Tətbiqin Qurulması ---
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 CORS(app, supports_credentials=True, origins=["http://127.0.0.1:5500", "http://127.0.0.1:5501", "http://localhost:8000"])
 
@@ -500,20 +502,19 @@ def get_all_exams():
     exam_list = [{'id': exam.id, 'name': exam.name, 'is_active': exam.is_active, 'question_count': len(exam.questions)} for exam in exams]
     return jsonify(exam_list)
 
-# app.py -> Köhnə delete_exam funksiyasını bununla əvəz edin
 @app.route('/api/admin/exams/<int:exam_id>', methods=['DELETE'])
 @login_required
 def delete_exam(exam_id):
     if not isinstance(current_user, Admin):
         return jsonify({'message': 'Yetkiniz yoxdur'}), 403
-    
+
     exam = Exam.query.get_or_404(exam_id)
-    
+
     try:
         # Əvvəlcə bu imtahana aid olan bütün asılı məlumatları silirik
         PaymentOrder.query.filter_by(exam_id=exam_id).delete()
         Submission.query.filter_by(exam_id=exam_id).delete()
-        
+
         # Sonra imtahanın özünü silirik
         db.session.delete(exam)
         db.session.commit()
@@ -2130,7 +2131,7 @@ def create_payment_order():
     
     # === ƏSAS DƏYİŞİKLİK BURADADIR ===
     # Artıq hər iki sorğu (istifadəçi və Payriff siqnalı) eyni ünvana gələcək
-    approve_url = url_for('payment_complete', _external=True)
+    approve_url = url_for('serve_static_files', path=f'exam-test.html?examId={exam.id}', _external=True)
     cancel_url = url_for('serve_static_files', path=f'exam-list.html?payment_status=cancel', _external=True)
     decline_url = url_for('serve_static_files', path=f'exam-list.html?payment_status=decline', _external=True)
 
@@ -2306,3 +2307,30 @@ def delete_announcement(announcement_id):
 def test_webhook():
     print("!!!!!!!!!!!!!!! TEST WEBHOOK UĞURLA QƏBUL EDİLDİ !!!!!!!!!!!!!!!")
     return jsonify({"status": "ok", "message": "Test successful!"}), 200
+
+@app.route('/api/check-payment-for-exam/<int:exam_id>')
+def check_payment_for_exam(exam_id):
+    has_access = False
+    exam = Exam.query.get(exam_id)
+
+    if not exam:
+        return jsonify({"error": "İmtahan tapılmadı"}), 404
+
+    if exam.price <= 0:
+        has_access = True
+    else:
+        user_id = current_user.id if current_user.is_authenticated and isinstance(current_user, User) else None
+        guest_session_id = session.get('guest_session_id')
+
+        order = PaymentOrder.query.filter(
+            (PaymentOrder.exam_id == exam_id) & (PaymentOrder.status == 'APPROVED') &
+            ((PaymentOrder.user_id == user_id) if user_id else (PaymentOrder.guest_session_id == guest_session_id))
+        ).first()
+
+        if order:
+            has_access = True
+    
+    if has_access:
+        return jsonify({"status": "ok", "message": "Access granted"}), 200
+    else:
+        return jsonify({"status": "error", "message": "Access denied"}), 403
