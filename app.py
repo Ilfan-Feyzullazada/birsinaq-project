@@ -28,6 +28,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 
 # --- Tətbiqin Qurulması ---
 app = Flask(__name__)
+app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=24)
 CORS(app, supports_credentials=True, origins=["http://127.0.0.1:5500", "http://127.0.0.1:5501", "http://localhost:8000"])
