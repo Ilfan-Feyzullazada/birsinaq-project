@@ -2104,6 +2104,7 @@ def delete_affiliate(affiliate_id):
 
 # app.py -> Köhnə create_payment_order funksiyasını bununla TAM ƏVƏZ EDİN
 
+# Köhnə create_payment_order funksiyasını silib, bunu yapışdırın
 @app.route('/api/create-payment-order', methods=['POST'])
 def create_payment_order():
     data = request.get_json()
@@ -2113,7 +2114,6 @@ def create_payment_order():
     if not exam or exam.price <= 0:
         return jsonify({'error': 'İmtahan tapılmadı və ya ödəniş tələb olunmur'}), 404
 
-    # İstifadəçi və ya qonaq sessiyasını təyin edirik (bu hissə dəyişməyib)
     guest_session_id = None
     user_id = None
     if current_user.is_authenticated and isinstance(current_user, User):
@@ -2129,43 +2129,38 @@ def create_payment_order():
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
 
-    # === ƏSAS DƏYİŞİKLİKLƏR BURADADIR ===
-
-    # 1. Server-dən-serverə təsdiq siqnalı üçün xüsusi URL (https ilə)
+    # === DÜZGÜN URL-lərin TƏYİN EDİLMƏSİ ===
+    
+    # 1. Bu, Payriff-in gizli siqnal göndərəcəyi server ünvanıdır
     callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
     
-    # 2. İstifadəçinin ödənişdən sonra yönləndiriləcəyi URL-lər (https ilə)
+    # 2. Bu isə istifadəçinin brauzerinin yönləndiriləcəyi imtahan səhifəsidir
     success_redirect_url = url_for('serve_static_files', path=f'exam-test.html?examId={exam.id}', _external=True, _scheme='https')
-    failed_redirect_url = url_for('serve_static_files', path=f'exam-list.html?type={exam.exam_type.name}&grade={exam.class_name.name}&payment=failed', _external=True, _scheme='https')
+    
+    # 3. Uğursuz ödənişdə istifadəçinin qayıdacağı səhifə
+    failed_redirect_url = url_for('serve_static_files', path=f'exam-list.html?payment=failed', _external=True, _scheme='https')
 
-    # 3. Payriff V3 API-sinə uyğun yeni sorğu formatı
+    # Payriff V3 API-sinə uyğun yeni sorğu formatı
     payload = {
         "amount": float(exam.price),
         "currency": "AZN",
-        "language": "AZ",
         "description": f"'{exam.title}' imtahanı üçün ödəniş.",
-        "callbackUrl": callback_url,                 # ƏSAS HƏLL: Server üçün xüsusi callbackUrl
-        "successRedirectUrl": success_redirect_url, # İstifadəçi üçün uğurlu yönləndirmə
-        "failedRedirectUrl": failed_redirect_url,   # İstifadəçi üçün uğursuz yönləndirmə
+        "callbackUrl": callback_url,                 # Server üçün
+        "successRedirectUrl": success_redirect_url, # İstifadəçi üçün
+        "failedRedirectUrl": failed_redirect_url,   # İstifadəçi üçün
         "operation": "PURCHASE",
-        "cardSave": False,
-        "metadata": {
-            "exam_id": exam.id # Gələcəkdə faydalı ola bilər
-        }
+        "cardSave": False
     }
     
     headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
 
     try:
-        # DİQQƏT: Sorğu ünvanı da V3-ə dəyişdirildi
         response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers=headers)
         response.raise_for_status()
         payment_data = response.json()
 
         if payment_data.get('code') == '00000':
             payriff_order_id = payment_data['payload']['orderId']
-            
-            # Sifarişi öz bazamıza yazırıq (bu hissə dəyişməyib)
             new_order = PaymentOrder(
                 order_id_payriff=payriff_order_id,
                 exam_id=exam.id,
@@ -2176,15 +2171,15 @@ def create_payment_order():
             )
             db.session.add(new_order)
             db.session.commit()
-            
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
             return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
-
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
-
+    
+    
+    
 @app.route('/api/payriff/webhook', methods=['POST'])
 def payriff_webhook():
     data = request.get_json()
