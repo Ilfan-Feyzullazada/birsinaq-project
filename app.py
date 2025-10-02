@@ -2144,15 +2144,11 @@ def create_payment_order():
     if not exam or exam.price <= 0:
         return jsonify({'error': 'İmtahan tapılmadı və ya ödəniş tələb olunmur'}), 404
         
-    # --- YENİ ƏLAVƏ EDİLMİŞ HİSSƏ BAŞLAYIR ---
-    # Qonaq istifadəçi üçün sessiya yaradırıq
     if not current_user.is_authenticated:
         if 'guest_session_id' not in session:
             session['guest_session_id'] = str(uuid.uuid4())
-        # Qonağın adını və emailini sessiyada saxlayırıq ki, imtahan bitəndə istifadə edə bilək
         session['guest_name'] = data.get('guestName')
         session['guest_email'] = data.get('guestEmail')
-    # --- YENİ ƏLAVƏ EDİLMİŞ HİSSƏ BİTİR ---
 
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
@@ -2160,14 +2156,11 @@ def create_payment_order():
     if not merchant_id or not secret_key:
         return jsonify({'error': 'Serverdə Payriff ayarları konfiqurasiya edilməyib.'}), 500
 
-    # _external=True vacibdir ki, tam URL (https://birsinaq.az/...) yaransın
     approve_url = url_for('payment_status_page', _external=True)
     cancel_url = url_for('payment_status_page', _external=True)
     decline_url = url_for('payment_status_page', _external=True)
-    # Callback üçün də tam URL yaradırıq
     callback_url = url_for('payriff_webhook', _external=True)
 
-    # Bizim bazamızda sifarişi ƏVVƏLCƏDƏN yaradırıq
     custom_order_id = str(uuid.uuid4())
     new_order = PaymentOrder(
         custom_order_id=custom_order_id,
@@ -2181,18 +2174,14 @@ def create_payment_order():
     db.session.commit()
     
     payload = {
-    "amount": float(exam.price),
-    "currency": "AZN",
-    "language": "AZ",
-    "description": f"'{exam.title}' imtahanı üçün ödəniş.",
-    "callbackUrl": callback_url, # Serverin xəbərdar olması üçün
-    "approveUrl": approve_url,     # İstifadəçinin yönləndirilməsi üçün
-    "cancelUrl": cancel_url,       # İstifadəçinin yönləndirilməsi üçün
-    "declineUrl": decline_url,     # İstifadəçinin yönləndirilməsi üçün
-    "cardSave": False,
-    "operation": "PURCHASE"        # Sənədə görə tələb olunan vacib sahə
-    # Sizin custom_order_id V3-də başqa yolla ötürülür, ona görə payload-dan çıxarılır.
-}
+        "amount": float(exam.price),
+        "currency": "AZN",
+        "language": "AZ",
+        "description": f"'{exam.title}' imtahanı üçün ödəniş.",
+        "callbackUrl": callback_url,
+        "cardSave": False,
+        "operation": "PURCHASE"
+    }
     
     headers = {
         'Content-Type': 'application/json',
@@ -2208,19 +2197,22 @@ def create_payment_order():
 
         if payment_data.get('status') == 'SUCCESS' and payment_data.get('payload'):
             payriff_order_id = payment_data['payload']['id']
-            # Payriff-dən gələn ID-ni öz bazamızda yadda saxlayırıq
             order_to_update = PaymentOrder.query.filter_by(custom_order_id=custom_order_id).first()
             if order_to_update:
                 order_to_update.order_id_payriff = payriff_order_id
                 db.session.commit()
             
-            # İstifadəçini ödəniş səhifəsinə yönləndiririk
             return jsonify({'paymentUrl': payment_data['payload']['payment']['url']})
         else:
             error_message = payment_data.get('message', 'Payriff tərəfindən naməlum xəta')
+            print(f"!!! PAYRIFF LOGIC ERROR: {payment_data}")
             return jsonify({'error': error_message}), 500
             
     except Exception as e:
+        error_details = str(e)
+        if hasattr(e, 'response') and e.response is not None:
+            error_details = e.response.text
+        print(f"!!! PAYRIFF CRITICAL ERROR DETAILS: {error_details}")
         return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
 
 class Announcement(db.Model):
