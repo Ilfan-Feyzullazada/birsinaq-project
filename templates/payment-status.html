@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <title>Ödəniş Yoxlanılır</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f7f9; margin: 0; }
+        .container { text-align: center; padding: 40px; background-color: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+        .spinner { border: 6px solid #f3f3f3; border-top: 6px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        h1 { color: #333; }
+        p { color: #777; }
+        #message { font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner"></div>
+        <h1>Ödənişin statusu yoxlanılır...</h1>
+        <p>Zəhmət olmasa gözləyin. Bu pəncərəni bağlamayın.</p>
+        <p id="message"></p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const orderID = '{{ orderID }}';
+            const messageEl = document.getElementById('message');
+            let attempts = 0;
+            const maxAttempts = 15; // Təxminən 30 saniyə yoxlasın
+
+            if (!orderID) {
+                messageEl.textContent = "Sifariş ID tapılmadı!";
+                messageEl.style.color = 'red';
+                return;
+            }
+
+            const interval = setInterval(() => {
+                attempts++;
+                if (attempts > maxAttempts) {
+                    clearInterval(interval);
+                    messageEl.textContent = "Ödənişi təsdiqləmək mümkün olmadı. Zəhmət olmasa, profilinizə daxil olub imtahanın aktiv olub-olmadığını yoxlayın və ya bizimlə əlaqə saxlayın.";
+                    messageEl.style.color = 'red';
+                    return;
+                }
+
+                fetch(`/api/check-payment-status/${orderID}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'APPROVED') {
+                            clearInterval(interval);
+                            messageEl.textContent = "Ödəniş uğurla təsdiqləndi! İmtahana yönləndirilirsiniz...";
+                            messageEl.style.color = 'green';
+                            window.location.href = data.redirectUrl;
+                        } else if (data.status === 'FAILED') {
+                            clearInterval(interval);
+                            messageEl.textContent = "Ödəniş uğursuz oldu. Zəhmət olmasa yenidən cəhd edin.";
+                            messageEl.style.color = 'red';
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Status yoxlanarkən xəta:", err);
+                    });
+            }, 2000); // Hər 2 saniyədən bir yoxla
+        });
+    </script>
+</body>
+</html>
