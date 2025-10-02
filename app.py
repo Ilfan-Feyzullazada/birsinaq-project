@@ -2181,16 +2181,18 @@ def create_payment_order():
     db.session.commit()
     
     payload = {
-        "amount": float(exam.price),
-        "currency": "AZN",
-        "language": "AZ",
-        "description": f"'{exam.title}' imtahanı üçün ödəniş.",
-        "approveUrl": approve_url,
-        "cancelUrl": cancel_url,
-        "declineUrl": decline_url,
-        "callbackUrl": callback_url,
-        "orderID": custom_order_id # Payriff-ə öz unikal ID-mizi göndəririk
-    }
+    "amount": float(exam.price),
+    "currency": "AZN",
+    "language": "AZ",
+    "description": f"'{exam.title}' imtahanı üçün ödəniş.",
+    "callbackUrl": callback_url, # Serverin xəbərdar olması üçün
+    "approveUrl": approve_url,     # İstifadəçinin yönləndirilməsi üçün
+    "cancelUrl": cancel_url,       # İstifadəçinin yönləndirilməsi üçün
+    "declineUrl": decline_url,     # İstifadəçinin yönləndirilməsi üçün
+    "cardSave": False,
+    "operation": "PURCHASE"        # Sənədə görə tələb olunan vacib sahə
+    # Sizin custom_order_id V3-də başqa yolla ötürülür, ona görə payload-dan çıxarılır.
+}
     
     headers = {
         'Content-Type': 'application/json',
