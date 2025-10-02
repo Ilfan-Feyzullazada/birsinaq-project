@@ -2,65 +2,63 @@
 <html lang="az">
 <head>
     <meta charset="UTF-8">
-    <title>Ödəniş Yoxlanılır</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ödəniş Yoxlanılır...</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f7f9; margin: 0; }
-        .container { text-align: center; padding: 40px; background-color: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
-        .spinner { border: 6px solid #f3f3f3; border-top: 6px solid #3498db; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background-color: #f4f6f8; text-align: center; }
+        .container { padding: 40px; }
+        h2 { color: #333; }
+        p { color: #666; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        h1 { color: #333; }
-        p { color: #777; }
-        #message { font-weight: bold; margin-top: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="spinner"></div>
-        <h1>Ödənişin statusu yoxlanılır...</h1>
-        <p>Zəhmət olmasa gözləyin. Bu pəncərəni bağlamayın.</p>
-        <p id="message"></p>
+        <h2 id="status-title">Ödənişiniz yoxlanılır...</h2>
+        <p id="status-message">Zəhmət olmasa gözləyin, təsdiq olunan kimi imtahana yönləndiriləcəksiniz.</p>
+        <div id="spinner" class="spinner"></div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const orderID = '{{ orderID }}';
-            const messageEl = document.getElementById('message');
-            let attempts = 0;
-            const maxAttempts = 15; // Təxminən 30 saniyə yoxlasın
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('custom_order_id');
+            const examId = urlParams.get('examId');
 
-            if (!orderID) {
-                messageEl.textContent = "Sifariş ID tapılmadı!";
-                messageEl.style.color = 'red';
+            if (!orderId || !examId) {
+                document.getElementById('status-title').textContent = 'Xəta';
+                document.getElementById('status-message').textContent = 'Sifariş məlumatları tapılmadı.';
+                document.getElementById('spinner').style.display = 'none';
                 return;
             }
 
-            const interval = setInterval(() => {
-                attempts++;
-                if (attempts > maxAttempts) {
-                    clearInterval(interval);
-                    messageEl.textContent = "Ödənişi təsdiqləmək mümkün olmadı. Zəhmət olmasa, profilinizə daxil olub imtahanın aktiv olub-olmadığını yoxlayın və ya bizimlə əlaqə saxlayın.";
-                    messageEl.style.color = 'red';
-                    return;
-                }
+            let attempts = 0;
+            const maxAttempts = 5; // 15 saniyə gözləsin
 
-                fetch(`/api/check-payment-status/${orderID}`)
+            const interval = setInterval(() => {
+                fetch(`/api/check-order-status/${orderId}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'APPROVED') {
                             clearInterval(interval);
-                            messageEl.textContent = "Ödəniş uğurla təsdiqləndi! İmtahana yönləndirilirsiniz...";
-                            messageEl.style.color = 'green';
-                            window.location.href = data.redirectUrl;
-                        } else if (data.status === 'FAILED') {
-                            clearInterval(interval);
-                            messageEl.textContent = "Ödəniş uğursuz oldu. Zəhmət olmasa yenidən cəhd edin.";
-                            messageEl.style.color = 'red';
+                            window.location.href = `exam-test.html?examId=${examId}`;
+                        } else {
+                            attempts++;
+                            if (attempts >= maxAttempts) {
+                                clearInterval(interval);
+                                document.getElementById('status-title').textContent = 'Xəta Baş Verdi';
+                                document.getElementById('status-message').textContent = 'Ödəniş təsdiqlənmədi. Zəhmət olmasa dəstək ilə əlaqə saxlayın.';
+                                document.getElementById('spinner').style.display = 'none';
+                            }
                         }
                     })
                     .catch(err => {
-                        console.error("Status yoxlanarkən xəta:", err);
+                        clearInterval(interval);
+                        document.getElementById('status-title').textContent = 'Server Xətası';
+                        document.getElementById('spinner').style.display = 'none';
                     });
-            }, 2000); // Hər 2 saniyədən bir yoxla
+            }, 3000); 
         });
     </script>
 </body>

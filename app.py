@@ -2139,15 +2139,11 @@ def create_payment_order():
     data = request.get_json()
     exam_id = data.get('examId')
     exam = Exam.query.get(exam_id)
+    if not exam: return jsonify({'error': 'İmtahan tapılmadı'}), 404
 
-    if not exam or exam.price <= 0:
-        return jsonify({'error': 'İmtahan tapılmadı və ya ödəniş tələb olunmur'}), 404
-
+    user_id = current_user.id if current_user.is_authenticated and isinstance(current_user, User) else None
     guest_session_id = None
-    user_id = None
-    if current_user.is_authenticated and isinstance(current_user, User):
-        user_id = current_user.id
-    else:
+    if not user_id:
         if 'guest_session_id' not in session:
             session['guest_session_id'] = str(uuid.uuid4())
         guest_session_id = session.get('guest_session_id')
@@ -2155,56 +2151,39 @@ def create_payment_order():
             session['guest_name'] = data.get('guestName')
             session['guest_email'] = data.get('guestEmail')
 
+    # Sifarişi əvvəlcədən öz bazamızda yaradırıq
+    new_order = PaymentOrder(
+        exam_id=exam.id, user_id=user_id, guest_session_id=guest_session_id,
+        amount=exam.price, status='PENDING'
+    )
+    db.session.add(new_order)
+    db.session.commit()
+
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
 
-    # === URL-lərin DÜZGÜN TƏYİN EDİLDİYİ HİSSƏ ===
     callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
-    success_redirect_url = url_for('serve_static_files', path=f'exam-test.html', examId=exam.id, _external=True, _scheme='https')
-    failed_redirect_url = url_for('serve_static_files', path=f'exam-list.html?payment=failed', _external=True, _scheme='https')
+    # İSTİFADƏÇİNİN YÖNLƏNƏCƏYİ "GÖZLƏMƏ OTAĞI"
+    redirect_url = url_for('serve_static_files', path='templates/payment-status.html', custom_order_id=new_order.id, examId=exam.id, _external=True, _scheme='https')
 
-    # Payriff V3 API-sinə uyğun yeni sorğu formatı
     payload = {
-        "merchantId": merchant_id,
-        "amount": float(exam.price),
-        "currency": "AZN",
-        "description": f"'{exam.title}' imtahanı üçün ödəniş.",
-        "callbackUrl": callback_url,
-        "successRedirectUrl": success_redirect_url,
-        "failedRedirectUrl": failed_redirect_url,
-        "operation": "PURCHASE",
-        "cardSave": False
+        "merchantId": merchant_id, "amount": float(exam.price), "currency": "AZN",
+        "description": f"'{exam.title}' imtahanı üçün ödəniş.", "callbackUrl": callback_url,
+        "successRedirectUrl": redirect_url, "failedRedirectUrl": redirect_url, "operation": "PURCHASE"
     }
 
-    headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
-
     try:
-        response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers=headers)
+        response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers={'Content-Type': 'application/json', 'Authorization': secret_key})
         response.raise_for_status()
         payment_data = response.json()
 
         if payment_data.get('code') == '00000':
-            payriff_order_id = payment_data['payload']['orderId']
-            new_order = PaymentOrder(
-                order_id_payriff=payriff_order_id,
-                exam_id=exam.id,
-                user_id=user_id,
-                guest_session_id=guest_session_id,
-                amount=exam.price,
-                status='PENDING'
-            )
-            db.session.add(new_order)
+            new_order.order_id_payriff = payment_data['payload']['orderId']
             db.session.commit()
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
-            print(f"!!! PAYRIFF LOGIC ERROR: {payment_data.get('message')}")
-            return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
-
+            return jsonify({'error': payment_data.get('message', 'Payriff xətası')}), 500
     except Exception as e:
-        error_details = str(e)
-        if hasattr(e, 'response') and e.response is not None:
-            error_details = e.response.text
-        print(f"!!! PAYRIFF CRITICAL ERROR DETAILS: {error_details}")
         db.session.rollback()
         return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
 
@@ -2319,3 +2298,22 @@ def check_payment_for_exam(exam_id):
         return jsonify({"status": "ok", "message": "Access granted"}), 200
     else:
         return jsonify({"status": "error", "message": "Access denied"}), 403
+    
+    
+    
+@app.route('/api/check-order-status/<int:order_id>')
+def check_order_status(order_id):
+    order = PaymentOrder.query.get(order_id)
+    if not order:
+        return jsonify({'status': 'NOT_FOUND'}), 404
+
+    is_owner = (current_user.is_authenticated and order.user_id == current_user.id) or \
+               (not current_user.is_authenticated and order.guest_session_id == session.get('guest_session_id'))
+
+    if not is_owner:
+        return jsonify({'status': 'FORBIDDEN'}), 403
+
+    if order.status == 'APPROVED':
+        return jsonify({'status': order.status}), 200
+    else:
+        return jsonify({'status': order.status}), 404
