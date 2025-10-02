@@ -2058,33 +2058,44 @@ def create_payment_order():
     exam = Exam.query.get(exam_id)
     if not exam or exam.price <= 0: return jsonify({'error': 'İmtahan tapılmadı və ya pulsuzdur'}), 404
 
-    merchant_id, secret_key = os.environ.get('PAYRIFF_MERCHANT_ID'), os.environ.get('PAYRIFF_SECRET_KEY')
+    merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
+    secret_key = os.environ.get('PAYRIFF_SECRET_KEY') # SECRET KEY-i götürürük
     base_url, payriff_order_id = os.environ.get('BASE_URL'), str(uuid.uuid4())
     callback_url = f"{base_url}/payment/complete" 
 
     payload = {
-        "amount": float(exam.price),
-        "currency": "AZN",
-        "description": f"'{exam.title}' imtahanı üçün ödəniş.",
-        "callbackUrl": callback_url,
-        "language": "AZ",
-        "operation": "PURCHASE",  # <-- YENİ ƏLAVƏ EDİLDİ
-        "cardSave": False,      # <-- YENİ ƏLAVƏ EDİLDİ
-        "metadata": { "orderId": payriff_order_id }
+        "body": {
+            "amount": float(exam.price),
+            "currencyType": "AZN",
+            "description": f"'{exam.title}' imtahanı üçün ödəniş.",
+            "approveURL": callback_url,
+            "cancelURL": callback_url,
+            "declineURL": callback_url,
+            "directPay": True,
+            "language": "AZ",
+            "orderID": payriff_order_id
+        },
+        "merchant": merchant_id
     }
-    headers = {'Content-Type': 'application/json', 'Authorization': f"Bearer {merchant_id}"}
+    
+    # === ƏSAS DƏYİŞİKLİK BURADADIR ===
+    # Authorization başlığı artıq SECRET_KEY ilə göndərilir
+    headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
     
     try:
-        response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers=headers)
+        # Sorğu V2 endpoint-inə göndərilir
+        response = requests.post("https://api.payriff.com/api/v2/createOrder", json=payload, headers=headers)
         response.raise_for_status()
         payment_data = response.json()
-        if payment_data.get('status') == 'SUCCESS' and payment_data.get('payload', {}).get('paymentUrl'):
+
+        if payment_data.get('code') == '00000':
             new_order = PaymentOrder(exam_id=exam.id, payriff_order_id=payriff_order_id, user_id=current_user.id)
             db.session.add(new_order)
             db.session.commit()
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
             return jsonify({'error': payment_data.get('message', 'Payriff xətası')}), 500
+            
     except requests.exceptions.HTTPError as err:
         return jsonify({'error': f'Xəta: {err.response.status_code} Client Error: for url: {err.response.url}', 'details': err.response.text}), 500
     except Exception as e:
@@ -2099,33 +2110,44 @@ def create_guest_payment_order():
     exam = Exam.query.get(exam_id)
     if not exam or exam.price <= 0: return jsonify({'error': 'İmtahan tapılmadı və ya pulsuzdur'}), 404
     
-    merchant_id, secret_key = os.environ.get('PAYRIFF_MERCHANT_ID'), os.environ.get('PAYRIFF_SECRET_KEY')
+    merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
+    secret_key = os.environ.get('PAYRIFF_SECRET_KEY') # SECRET KEY-i götürürük
     base_url, payriff_order_id = os.environ.get('BASE_URL'), str(uuid.uuid4())
     callback_url = f"{base_url}/payment/complete"
     
     payload = {
-        "amount": float(exam.price),
-        "currency": "AZN",
-        "description": f"'{exam.title}' imtahanı üçün ödəniş.",
-        "callbackUrl": callback_url,
-        "language": "AZ",
-        "operation": "PURCHASE",  # <-- YENİ ƏLAVƏ EDİLDİ
-        "cardSave": False,      # <-- YENİ ƏLAVƏ EDİLDİ
-        "metadata": { "orderId": payriff_order_id }
+        "body": {
+            "amount": float(exam.price),
+            "currencyType": "AZN",
+            "description": f"'{exam.title}' imtahanı üçün ödəniş.",
+            "approveURL": callback_url,
+            "cancelURL": callback_url,
+            "declineURL": callback_url,
+            "directPay": True,
+            "language": "AZ",
+            "orderID": payriff_order_id
+        },
+        "merchant": merchant_id
     }
-    headers = {'Content-Type': 'application/json', 'Authorization': f"Bearer {merchant_id}"}
+    
+    # === ƏSAS DƏYİŞİKLİK BURADADIR ===
+    # Authorization başlığı artıq SECRET_KEY ilə göndərilir
+    headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
     
     try:
-        response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers=headers)
+        # Sorğu V2 endpoint-inə göndərilir
+        response = requests.post("https://api.payriff.com/api/v2/createOrder", json=payload, headers=headers)
         response.raise_for_status()
         payment_data = response.json()
-        if payment_data.get('status') == 'SUCCESS' and payment_data.get('payload', {}).get('paymentUrl'):
+
+        if payment_data.get('code') == '00000':
             new_order = PaymentOrder(exam_id=exam.id, payriff_order_id=payriff_order_id, guest_email=guest_email)
             db.session.add(new_order)
             db.session.commit()
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
             return jsonify({'error': payment_data.get('message', 'Payriff xətası')}), 500
+
     except requests.exceptions.HTTPError as err:
         return jsonify({'error': f'Xəta: {err.response.status_code} Client Error: for url: {err.response.url}', 'details': err.response.text}), 500
     except Exception as e:
