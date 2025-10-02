@@ -4,49 +4,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const examId = urlParams.get('examId');
     const price = urlParams.get('price');
 
-    if (!examId) {
-        alert('İmtahan ID-si tapılmadı!');
+    if (!examId || !price) {
+        alert('İmtahan məlumatları tapılmadı!');
         window.location.href = 'exam.html';
         return;
     }
 
     const priceDisplay = document.getElementById('exam-price-display');
-    if (priceDisplay && price) {
-        priceDisplay.textContent = `${price} AZN`;
-    }
+    if (priceDisplay) { priceDisplay.textContent = `${price} AZN`; }
 
-    if (paymentForm) {
-        paymentForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const button = e.target.querySelector('button[type="submit"]');
-            button.textContent = 'Gözləyin...';
-            button.disabled = true;
+    paymentForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const guestData = {
+            examId: examId,
+            guestName: document.getElementById('name').value,
+            guestEmail: document.getElementById('email').value
+        };
+        const button = e.target.querySelector('.submit-btn');
+        button.textContent = 'Gözləyin...';
+        button.disabled = true;
 
-            fetch('/api/create-payment-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                    examId: examId,
-                    guestName: document.getElementById('name').value,
-                    guestEmail: document.getElementById('email').value
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.paymentUrl) {
-                    window.location.href = data.paymentUrl;
-                } else {
-                    alert('Xəta: ' + (data.error || 'Naməlum xəta'));
-                    button.textContent = 'Ödəniş Et';
-                    button.disabled = false;
-                }
-            })
-            .catch(err => {
-                alert('Ödənişə başlamaq mümkün olmadı.');
+        // === DÜZGÜN ÜNVAN BUDUR ===
+        fetch('/api/create-guest-payment-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(guestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.paymentUrl) {
+                window.location.href = data.paymentUrl;
+            } else {
+                alert('Xəta: ' + (data.error || 'Naməlum xəta'));
                 button.textContent = 'Ödəniş Et';
                 button.disabled = false;
-            });
+            }
+        })
+        .catch(err => {
+            alert('Ödənişə başlamaq mümkün olmadı.');
+            button.textContent = 'Ödəniş Et';
+            button.disabled = false;
         });
-    }
+    });
 });
