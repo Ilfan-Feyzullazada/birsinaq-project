@@ -2102,84 +2102,122 @@ def delete_affiliate(affiliate_id):
 
 # app.py -> Köhnə create_payment_order funksiyasını bununla ƏVƏZ EDİN
 
-# app.py -> Köhnə create_payment_order funksiyasını bununla TAM ƏVƏZ EDİN
+# Qeydiyyatlı istifadəçi üçün ödəniş sorğusu yaradır
 
-# Köhnə create_payment_order funksiyasını silib, bunu yapışdırın
+# app.py -> Köhnə ödəniş funksiyalarını silib, bunları yapışdırın.
+
 @app.route('/api/create-payment-order', methods=['POST'])
+@login_required
 def create_payment_order():
+    if not isinstance(current_user, User): return jsonify({'error': 'Yalnız istifadəçilər ödəniş edə bilər'}), 403
+    
     data = request.get_json()
     exam_id = data.get('examId')
     exam = Exam.query.get(exam_id)
+    if not exam or exam.price <= 0: return jsonify({'error': 'İmtahan tapılmadı və ya pulsuzdur'}), 404
 
-    if not exam or exam.price <= 0:
-        return jsonify({'error': 'İmtahan tapılmadı və ya ödəniş tələb olunmur'}), 404
-
-    guest_session_id = None
-    user_id = None
-    if current_user.is_authenticated and isinstance(current_user, User):
-        user_id = current_user.id
-    else:
-        if 'guest_session_id' not in session:
-            session['guest_session_id'] = str(uuid.uuid4())
-        guest_session_id = session.get('guest_session_id')
-        if data.get('guestName'):
-            session['guest_name'] = data.get('guestName')
-            session['guest_email'] = data.get('guestEmail')
-
-    merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
-    secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
-
-    # === DÜZGÜN URL-lərin TƏYİN EDİLMƏSİ ===
+    merchant_id, secret_key = os.environ.get('PAYRIFF_MERCHANT_ID'), os.environ.get('PAYRIFF_SECRET_KEY')
+    base_url, payriff_order_id = os.environ.get('BASE_URL'), str(uuid.uuid4())
     
-    # 1. Bu, Payriff-in gizli siqnal göndərəcəyi server ünvanıdır
-    callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
-    
-    # 2. Bu isə istifadəçinin brauzerinin yönləndiriləcəyi imtahan səhifəsidir
-    success_redirect_url = url_for('serve_static_files', path=f'exam-test.html?examId={exam.id}', _external=True, _scheme='https')
-    
-    # 3. Uğursuz ödənişdə istifadəçinin qayıdacağı səhifə
-    failed_redirect_url = url_for('serve_static_files', path=f'exam-list.html?payment=failed', _external=True, _scheme='https')
+    # Payriff developerinin dediyi kimi, /payment/complete istifadə edirik
+    callback_url = f"{base_url}/payment/complete" 
 
-    # Payriff V3 API-sinə uyğun yeni sorğu formatı
     payload = {
         "amount": float(exam.price),
         "currency": "AZN",
         "description": f"'{exam.title}' imtahanı üçün ödəniş.",
-        "callbackUrl": callback_url,                 # Server üçün
-        "successRedirectUrl": success_redirect_url, # İstifadəçi üçün
-        "failedRedirectUrl": failed_redirect_url,   # İstifadəçi üçün
-        "operation": "PURCHASE",
-        "cardSave": False
+        "callbackUrl": callback_url,
+        "language": "AZ",
+        "metadata": { "orderId": payriff_order_id }
     }
+    headers = {'Content-Type': 'application/json', 'Authorization': f"Bearer {merchant_id}"}
     
-    headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
-
     try:
         response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers=headers)
         response.raise_for_status()
         payment_data = response.json()
-
-        if payment_data.get('code') == '00000':
-            payriff_order_id = payment_data['payload']['orderId']
-            new_order = PaymentOrder(
-                order_id_payriff=payriff_order_id,
-                exam_id=exam.id,
-                user_id=user_id,
-                guest_session_id=guest_session_id,
-                amount=exam.price,
-                status='PENDING'
-            )
+        if payment_data.get('status') == 'SUCCESS' and payment_data.get('payload', {}).get('paymentUrl'):
+            new_order = PaymentOrder(exam_id=exam.id, payriff_order_id=payriff_order_id, user_id=current_user.id)
             db.session.add(new_order)
             db.session.commit()
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
-            return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
+            return jsonify({'error': payment_data.get('message', 'Payriff xətası')}), 500
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
+        return jsonify({'error': f'Xəta: {str(e)}'}), 500
+
+@app.route('/api/create-guest-payment-order', methods=['POST'])
+def create_guest_payment_order():
+    data = request.get_json()
+    exam_id, guest_name, guest_email = data.get('examId'), data.get('guestName'), data.get('guestEmail')
+    if not all([exam_id, guest_name, guest_email]): return jsonify({'error': 'Bütün məlumatlar daxil edilməlidir'}), 400
+    exam = Exam.query.get(exam_id)
+    if not exam or exam.price <= 0: return jsonify({'error': 'İmtahan tapılmadı və ya pulsuzdur'}), 404
     
+    merchant_id, secret_key = os.environ.get('PAYRIFF_MERCHANT_ID'), os.environ.get('PAYRIFF_SECRET_KEY')
+    base_url, payriff_order_id = os.environ.get('BASE_URL'), str(uuid.uuid4())
+    callback_url = f"{base_url}/payment/complete"
     
+    payload = {
+        "amount": float(exam.price),
+        "currency": "AZN",
+        "description": f"'{exam.title}' imtahanı üçün ödəniş.",
+        "callbackUrl": callback_url,
+        "language": "AZ",
+        "metadata": { "orderId": payriff_order_id }
+    }
+    headers = {'Content-Type': 'application/json', 'Authorization': f"Bearer {merchant_id}"}
     
+    try:
+        response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers=headers)
+        response.raise_for_status()
+        payment_data = response.json()
+        if payment_data.get('status') == 'SUCCESS' and payment_data.get('payload', {}).get('paymentUrl'):
+            new_order = PaymentOrder(exam_id=exam.id, payriff_order_id=payriff_order_id, guest_email=guest_email)
+            db.session.add(new_order)
+            db.session.commit()
+            return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
+        else:
+            return jsonify({'error': payment_data.get('message', 'Payriff xətası')}), 500
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Xəta: {str(e)}'}), 500
+
+@app.route('/payment/complete', methods=['GET', 'POST'])
+def payment_complete():
+    if request.method == 'POST':
+        secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
+        request_signature = request.headers.get('X-Signature')
+        request_data_bytes = request.get_data()
+        computed_signature = hmac.new(key=secret_key.encode('utf-8'), msg=request_data_bytes, digestmod=hashlib.sha256).hexdigest()
+
+        if not hmac.compare_digest(computed_signature, request_signature):
+            return jsonify({'error': 'Invalid signature'}), 403
+
+        data = request.get_json()
+        payload = data.get('payload', {})
+        payriff_order_id = payload.get('metadata', {}).get('orderId')
+        status = payload.get('paymentStatus')
+
+        if payriff_order_id:
+            order = PaymentOrder.query.filter_by(payriff_order_id=payriff_order_id).first()
+            if order:
+                order.status = 'APPROVED' if status == 'APPROVED' else 'FAILED'
+                db.session.commit()
+        return jsonify({'status': 'ok'}), 200
+
+    elif request.method == 'GET':
+        # GET sorğusu üçün artıq orderID gəlmir, brauzeri sadəcə yönləndiririk.
+        # Əsas məntiq POST webhook-da olduğu üçün istifadəçini profilinə və ya ana səhifəyə göndərə bilərik.
+        if current_user.is_authenticated:
+            return redirect(f"/profile.html")
+        else:
+            return redirect(f"/index.html")
+
+
+
+
 @app.route('/api/payriff/webhook', methods=['POST'])
 def payriff_webhook():
     data = request.get_json()
