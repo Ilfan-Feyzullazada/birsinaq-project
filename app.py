@@ -2174,13 +2174,15 @@ def create_payment_order():
     db.session.commit()
     
     payload = {
+        "merchantId": merchant_id,              # <-- YENİ ƏLAVƏ EDİLƏN SƏTİR
         "amount": float(exam.price),
         "currency": "AZN",
-        "language": "AZ",
         "description": f"'{exam.title}' imtahanı üçün ödəniş.",
         "callbackUrl": callback_url,
-        "cardSave": False,
-        "operation": "PURCHASE"
+        "successRedirectUrl": success_redirect_url,
+        "failedRedirectUrl": failed_redirect_url,
+        "operation": "PURCHASE",
+        "cardSave": False
     }
     
     headers = {
