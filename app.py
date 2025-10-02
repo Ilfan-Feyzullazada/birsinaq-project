@@ -2135,6 +2135,7 @@ def delete_affiliate(affiliate_id):
 
 # app.py faylına bu funksiyanı əlavə edin (köhnəsinin yerinə)
 
+# Köhnə create_payment_order funksiyasını silib, bunu yapışdırın
 @app.route('/api/create-payment-order', methods=['POST'])
 def create_payment_order():
     data = request.get_json()
@@ -2143,38 +2144,30 @@ def create_payment_order():
 
     if not exam or exam.price <= 0:
         return jsonify({'error': 'İmtahan tapılmadı və ya ödəniş tələb olunmur'}), 404
-        
-    if not current_user.is_authenticated:
+
+    guest_session_id = None
+    user_id = None
+    if current_user.is_authenticated and isinstance(current_user, User):
+        user_id = current_user.id
+    else:
         if 'guest_session_id' not in session:
             session['guest_session_id'] = str(uuid.uuid4())
-        session['guest_name'] = data.get('guestName')
-        session['guest_email'] = data.get('guestEmail')
+        guest_session_id = session.get('guest_session_id')
+        if data.get('guestName'):
+            session['guest_name'] = data.get('guestName')
+            session['guest_email'] = data.get('guestEmail')
 
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
 
-    if not merchant_id or not secret_key:
-        return jsonify({'error': 'Serverdə Payriff ayarları konfiqurasiya edilməyib.'}), 500
+    # === URL-lərin DÜZGÜN TƏYİN EDİLDİYİ HİSSƏ ===
+    callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
+    success_redirect_url = url_for('serve_static_files', path=f'exam-test.html', examId=exam.id, _external=True, _scheme='https')
+    failed_redirect_url = url_for('serve_static_files', path=f'exam-list.html?payment=failed', _external=True, _scheme='https')
 
-    approve_url = url_for('payment_status_page', _external=True)
-    cancel_url = url_for('payment_status_page', _external=True)
-    decline_url = url_for('payment_status_page', _external=True)
-    callback_url = url_for('payriff_webhook', _external=True)
-
-    custom_order_id = str(uuid.uuid4())
-    new_order = PaymentOrder(
-        custom_order_id=custom_order_id,
-        exam_id=exam.id,
-        user_id=current_user.id if current_user.is_authenticated else None,
-        guest_session_id=session.get('guest_session_id') if not current_user.is_authenticated else None,
-        amount=exam.price,
-        status='PENDING'
-    )
-    db.session.add(new_order)
-    db.session.commit()
-    
+    # Payriff V3 API-sinə uyğun yeni sorğu formatı
     payload = {
-        "merchantId": merchant_id,              # <-- YENİ ƏLAVƏ EDİLƏN SƏTİR
+        "merchantId": merchant_id,
         "amount": float(exam.price),
         "currency": "AZN",
         "description": f"'{exam.title}' imtahanı üçün ödəniş.",
@@ -2184,37 +2177,37 @@ def create_payment_order():
         "operation": "PURCHASE",
         "cardSave": False
     }
-    
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': secret_key
-    }
-    
-    payriff_url = f"https://api.payriff.com/api/v3/orders/{merchant_id}"
+
+    headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
 
     try:
-        response = requests.post(payriff_url, json=payload, headers=headers)
+        response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers=headers)
         response.raise_for_status()
         payment_data = response.json()
 
-        if payment_data.get('status') == 'SUCCESS' and payment_data.get('payload'):
-            payriff_order_id = payment_data['payload']['id']
-            order_to_update = PaymentOrder.query.filter_by(custom_order_id=custom_order_id).first()
-            if order_to_update:
-                order_to_update.order_id_payriff = payriff_order_id
-                db.session.commit()
-            
-            return jsonify({'paymentUrl': payment_data['payload']['payment']['url']})
+        if payment_data.get('code') == '00000':
+            payriff_order_id = payment_data['payload']['orderId']
+            new_order = PaymentOrder(
+                order_id_payriff=payriff_order_id,
+                exam_id=exam.id,
+                user_id=user_id,
+                guest_session_id=guest_session_id,
+                amount=exam.price,
+                status='PENDING'
+            )
+            db.session.add(new_order)
+            db.session.commit()
+            return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
-            error_message = payment_data.get('message', 'Payriff tərəfindən naməlum xəta')
-            print(f"!!! PAYRIFF LOGIC ERROR: {payment_data}")
-            return jsonify({'error': error_message}), 500
-            
+            print(f"!!! PAYRIFF LOGIC ERROR: {payment_data.get('message')}")
+            return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
+
     except Exception as e:
         error_details = str(e)
         if hasattr(e, 'response') and e.response is not None:
             error_details = e.response.text
         print(f"!!! PAYRIFF CRITICAL ERROR DETAILS: {error_details}")
+        db.session.rollback()
         return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
 
 class Announcement(db.Model):
