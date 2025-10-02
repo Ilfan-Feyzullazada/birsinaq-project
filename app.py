@@ -82,16 +82,15 @@ class User(db.Model, UserMixin):
 
 class PaymentOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    order_id_payriff = db.Column(db.String(100), unique=True, nullable=False, index=True)
-    exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    guest_session_id = db.Column(db.String(100), nullable=True) # Qonaqları izləmək üçün
-    amount = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(50), nullable=False, default='PENDING') # PENDING, APPROVED, FAILED
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    exam = db.relationship('Exam')
-    user = db.relationship('User')
+    guest_email = db.Column(db.String(100), nullable=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
+    # DÜZGÜN SÜTUN ADI BUDUR:
+    payriff_order_id = db.Column(db.String(100), unique=True, nullable=False)
+    status = db.Column(db.String(50), nullable=False, default='PENDING')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    user = db.relationship('User', backref='payment_orders')
+    exam = db.relationship('Exam', backref='payment_orders')
 
 
 # app.py -> Köhnə Organizer class-ını bununla əvəz edin
@@ -2089,7 +2088,11 @@ def create_payment_order():
         payment_data = response.json()
 
         if payment_data.get('code') == '00000':
-            new_order = PaymentOrder(exam_id=exam.id, payriff_order_id=payriff_order_id, user_id=current_user.id)
+            new_order = PaymentOrder(
+    exam_id=exam.id, 
+    payriff_order_id=payriff_order_id, # Bu ad yuxarıdakı model ilə eyni olmalıdır
+    user_id=current_user.id
+)
             db.session.add(new_order)
             db.session.commit()
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
@@ -2141,7 +2144,11 @@ def create_guest_payment_order():
         payment_data = response.json()
 
         if payment_data.get('code') == '00000':
-            new_order = PaymentOrder(exam_id=exam.id, payriff_order_id=payriff_order_id, guest_email=guest_email)
+            new_order = PaymentOrder(
+    exam_id=exam.id,
+    payriff_order_id=payriff_order_id, # Bu ad yuxarıdakı model ilə eyni olmalıdır
+    guest_email=guest_email
+)
             db.session.add(new_order)
             db.session.commit()
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
