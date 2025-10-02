@@ -539,64 +539,6 @@ def get_exam_meta():
 
 from flask import url_for, render_template
 
-@app.route('/payment/complete', methods=['GET', 'POST'])
-def payment_complete():
-    # === ADDIM 1: PAYRIFF-DƏN GƏLƏN GİZLİ TƏSDİQ SORĞUSUNU TUTMAQ (POST) ===
-    if request.method == 'POST':
-        data = request.get_json()
-        print("--- PAYRIFF POST REQUEST RECEIVED ON /payment/complete ---", data)
-        try:
-            payload = data.get('payload', {})
-            order_status = payload.get('orderStatus')
-            order_id = payload.get('orderID')
-
-            order = PaymentOrder.query.filter_by(order_id_payriff=order_id).first()
-            if not order:
-                print(f"Webhook Error: Order {order_id} not found.")
-                return jsonify({'status': 'error', 'message': 'Order not found'}), 404
-
-            if order_status == 'APPROVED':
-                order.status = 'APPROVED'
-                # Lazım gələrsə, burada komissiya balanslarını da artıra bilərik
-                print(f"Order {order_id} status updated to APPROVED.")
-            else:
-                order.status = 'FAILED'
-                print(f"Order {order_id} status updated to FAILED.")
-            
-            db.session.commit()
-            return jsonify({'status': 'ok'}), 200
-        except Exception as e:
-            db.session.rollback()
-            print(f"--- WEBHOOK CRITICAL ERROR ---: {e}")
-            return jsonify({'status': 'error', 'message': str(e)}), 500
-
-    # === ADDIM 2: İSTİFADƏÇİNİ QARŞILAMAQ (GET) ===
-    # İstifadəçinin brauzeri ödənişdən sonra bu hissəyə yönlənir
-    else:
-        # URL-dən sifariş ID-sini götürməyə çalışırıq (Payriff bunu bəzən göndərir)
-        order_id = request.args.get('orderId') 
-        # Təxminən 5 saniyə gözləyirik ki, arxa plandakı POST sorğusu gəlib çatsın
-        # Bu hissəni gələcəkdə JavaScript ilə daha dinamik etmək olar
-        import time
-        time.sleep(3) # 3 saniyə gözlə
-        
-        # İstifadəçinin son sifarişini tapmağa çalışırıq
-        user_id = current_user.id if current_user.is_authenticated else None
-        guest_session_id = session.get('guest_session_id')
-        
-        last_order = PaymentOrder.query.filter(
-            (PaymentOrder.user_id == user_id) | (PaymentOrder.guest_session_id == guest_session_id)
-        ).order_by(PaymentOrder.created_at.desc()).first()
-
-        if last_order and last_order.status == 'APPROVED':
-            # Əgər ödəniş təsdiqlənibsə, birbaşa imtahana yönləndiririk
-            return redirect(url_for('serve_static_files', path=f'exam-test.html?examId={last_order.exam_id}'))
-        else:
-            # Əgər hələ təsdiqlənməyibsə və ya xəta baş veribsə, istifadəçiyə məlumat veririk
-            # Gələcəkdə burada daha gözəl bir səhifə yaratmaq olar
-            return "Ödəniş təsdiqlənməsi gözlənilir. Zəhmət olmasa bir neçə saniyə sonra səhifəni yeniləyin və ya profilinizdən imtahana daxil olun. Problem davam edərsə, bizimlə əlaqə saxlayın."
-
-
 
 # --- STUDENT & GENERAL API ---
 @app.route('/api/profile')
