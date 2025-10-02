@@ -2060,8 +2060,6 @@ def create_payment_order():
 
     merchant_id, secret_key = os.environ.get('PAYRIFF_MERCHANT_ID'), os.environ.get('PAYRIFF_SECRET_KEY')
     base_url, payriff_order_id = os.environ.get('BASE_URL'), str(uuid.uuid4())
-    
-    # Payriff developerinin dediyi kimi, /payment/complete istifadə edirik
     callback_url = f"{base_url}/payment/complete" 
 
     payload = {
@@ -2070,6 +2068,8 @@ def create_payment_order():
         "description": f"'{exam.title}' imtahanı üçün ödəniş.",
         "callbackUrl": callback_url,
         "language": "AZ",
+        "operation": "PURCHASE",  # <-- YENİ ƏLAVƏ EDİLDİ
+        "cardSave": False,      # <-- YENİ ƏLAVƏ EDİLDİ
         "metadata": { "orderId": payriff_order_id }
     }
     headers = {'Content-Type': 'application/json', 'Authorization': f"Bearer {merchant_id}"}
@@ -2085,6 +2085,8 @@ def create_payment_order():
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
             return jsonify({'error': payment_data.get('message', 'Payriff xətası')}), 500
+    except requests.exceptions.HTTPError as err:
+        return jsonify({'error': f'Xəta: {err.response.status_code} Client Error: for url: {err.response.url}', 'details': err.response.text}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Xəta: {str(e)}'}), 500
@@ -2107,6 +2109,8 @@ def create_guest_payment_order():
         "description": f"'{exam.title}' imtahanı üçün ödəniş.",
         "callbackUrl": callback_url,
         "language": "AZ",
+        "operation": "PURCHASE",  # <-- YENİ ƏLAVƏ EDİLDİ
+        "cardSave": False,      # <-- YENİ ƏLAVƏ EDİLDİ
         "metadata": { "orderId": payriff_order_id }
     }
     headers = {'Content-Type': 'application/json', 'Authorization': f"Bearer {merchant_id}"}
@@ -2122,6 +2126,8 @@ def create_guest_payment_order():
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
             return jsonify({'error': payment_data.get('message', 'Payriff xətası')}), 500
+    except requests.exceptions.HTTPError as err:
+        return jsonify({'error': f'Xəta: {err.response.status_code} Client Error: for url: {err.response.url}', 'details': err.response.text}), 500
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Xəta: {str(e)}'}), 500
