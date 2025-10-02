@@ -28,50 +28,91 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================
     // === İLK YÜKLƏNMƏ PROSESLƏRİ ===
     // ==========================================================
+    // === YENİ KOD BAŞLAYIR ===
 
-    // Əgər istifadəçi daxil olubsa, profil adını yükləyirik
-    fetch(`/api/profile`, { credentials: 'include' })
-        .then(res => {
-            if (res.ok) { return res.json(); }
-            return Promise.reject('Not logged in');
-        })
-        .then(profileData => {
-            if (studentNameEl) studentNameEl.innerText = profileData.name;
-        })
-        .catch(() => {
-            // Əgər daxil olmayıbsa (qonaqdırsa), URL-dən götürülən adı yazırıq
-            const studentNameFromUrl = urlParams.get('studentName');
-            if (studentNameEl) studentNameEl.innerText = studentNameFromUrl || "Qonaq";
-        });
+    // 1. Ödənişi yoxlayan funksiya
+    function checkPaymentAndLoadExam() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const examId = urlParams.get('examId');
+        const questionsBlock = document.getElementById('questions-block');
+        const examHeader = document.querySelector('.test-header');
+        const finishExamBtn = document.getElementById('finish-exam-btn');
 
-    // İmtahan ID-si olmadan səhifənin işləməməsi üçün yoxlama
-    if (!examId) {
-        if (questionsBlock) {
-            questionsBlock.innerHTML = '<h2 style="color: red; text-align: center;">İmtahan ID-si tapılmadı! Zəhmət olmasa, imtahan siyahısından yenidən seçin.</h2>';
+        if (!examId) {
+            if (questionsBlock) questionsBlock.innerHTML = `<h2 style="color: red; text-align: center;">İmtahan ID-si tapılmadı!</h2>`;
+            return;
         }
-        return;
+
+        if (examHeader) examHeader.style.display = 'none';
+        if (finishExamBtn) finishExamBtn.style.display = 'none';
+        if (questionsBlock) questionsBlock.innerHTML = `<div style="text-align: center; padding: 50px;"><h2>Ödənişiniz yoxlanılır...</h2></div>`;
+
+        let attempts = 0;
+        const maxAttempts = 4; // Təxminən 12 saniyə yoxlayır
+
+        const interval = setInterval(() => {
+            fetch(`/api/check-payment-for-exam/${examId}`, { credentials: 'include' })
+                .then(response => {
+                    if (response.ok) {
+                        clearInterval(interval);
+                        loadExamContent(); // Uğurlu olarsa, imtahanı yüklə
+                    } else {
+                        attempts++;
+                        if (attempts >= maxAttempts) {
+                            clearInterval(interval);
+                            if (examHeader) examHeader.style.display = 'flex';
+                            if (questionsBlock) questionsBlock.innerHTML = `<div style="text-align: center; padding: 50px; color: red;"><h2>Xəta</h2><p>Ödəniş təsdiqlənmədi.</p></div>`;
+                        }
+                    }
+                })
+                .catch(err => {
+                    clearInterval(interval);
+                    if (questionsBlock) questionsBlock.innerHTML = `<h2>Server xətası.</h2>`;
+                });
+        }, 3000);
     }
 
-    // Əsas imtahan məlumatlarını serverdən çəkirik
-    fetch(`/api/exam-test/${examId}`)
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw new Error(err.error || 'Server xətası') });
-            }
-            return response.json();
-        })
-        .then(data => {
-            // Məlumatlar gəldikdən sonra səhifəni qururuq
-            if (examTitleEl) examTitleEl.textContent = data.title;
-            startTimer(data.duration);
-            renderExam(data);
-        })
-        .catch(error => {
-            if (questionsBlock) {
-                questionsBlock.innerHTML = `<h2>Xəta: ${error.message}</h2>`;
-            }
-        });
+    // 2. İmtahanı yükləyən funksiya
+    function loadExamContent() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const examId = urlParams.get('examId');
+        const questionsBlock = document.getElementById('questions-block');
+        const examHeader = document.querySelector('.test-header');
+        const finishExamBtn = document.getElementById('finish-exam-btn');
+        const studentNameEl = document.getElementById('student-name');
+        const examTitleEl = document.getElementById('exam-title');
 
+        if (examHeader) examHeader.style.display = 'flex';
+        if (finishExamBtn) finishExamBtn.style.display = 'block';
+
+        fetch(`/api/profile`, { credentials: 'include' })
+            .then(res => res.ok ? res.json() : null)
+            .then(profileData => {
+                if (studentNameEl) studentNameEl.innerText = profileData ? profileData.name : "Qonaq";
+            });
+
+        fetch(`/api/exam-test/${examId}`, { credentials: 'include' })
+            .then(res => {
+                if (res.ok) {
+                    return res.json();
+                } else {
+                    return res.json().then(err => Promise.reject(err.error || 'İmtahanı yükləmək mümkün olmadı.'));
+                }
+            })
+            .then(data => {
+                if (examTitleEl) examTitleEl.textContent = data.title;
+                // Bu funksiyalar sizin faylınızın qalan hissəsində onsuz da mövcuddur
+                startTimer(data.duration);
+                renderExam(data);
+            })
+            .catch(error => {
+                if (questionsBlock) {
+                    questionsBlock.innerHTML = `<h2>Xəta: ${error}</h2>`;
+                }
+            });
+    }
+
+    // === YENİ KOD BİTİR ===
     // ==========================================================
     // === ŞƏKİL YÜKLƏMƏ FUNKSİYALARI ===
     // ==========================================================
@@ -524,4 +565,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-});
+
+
+}
+);
+
