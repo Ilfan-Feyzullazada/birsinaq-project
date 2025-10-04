@@ -843,12 +843,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // DƏYİŞİKLİKLƏRİ İDARƏ EDƏN HİSSƏ
         questionsContainer.addEventListener('change', e => {
+            // Köhnə if (e.target.classList.contains('question-subject')) blokunu bununla əvəz edin:
             if (e.target.classList.contains('question-subject')) {
                 const selectElement = e.target;
-                const selectedOptionText = selectElement.options[selectElement.selectedIndex].text;
+                const selectedSubjectId = selectElement.value;
+                const selectedSubjectName = selectElement.options[selectElement.selectedIndex].text;
+                const container = document.getElementById('subject-videos-container');
+
+                // Yoxlayırıq ki, bu fənn üçün artıq link xanası yaradılıb ya yox
+                if (selectedSubjectId && !document.getElementById(`video-url-for-${selectedSubjectId}`)) {
+                    const videoInputGroup = document.createElement('div');
+                    videoInputGroup.className = 'form-group';
+                    videoInputGroup.id = `video-url-for-${selectedSubjectId}`;
+                    videoInputGroup.innerHTML = `
+            <label for="subject-video-${selectedSubjectId}">${selectedSubjectName} üçün Video Linki</label>
+            <input type="url" id="subject-video-${selectedSubjectId}" class="subject-video-url" data-subject-id="${selectedSubjectId}" placeholder="https://youtube.com/...">
+        `;
+                    container.appendChild(videoInputGroup);
+                }
+
+                // İngilis dili üçün audio xanasını göstərmə məntiqi
                 const questionBlock = selectElement.closest('.question-block');
                 const audioField = questionBlock.querySelector('.audio-upload-field');
-                if (selectedOptionText === 'İngilis Dili') {
+                if (selectedSubjectName === 'İngilis Dili') {
                     audioField.style.display = 'block';
                 } else {
                     audioField.style.display = 'none';
@@ -960,6 +977,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 questionsData.push(commonData);
             });
+
+            // Bu kodu formData.append('questions', ...) sətrindən əvvələ yapışdırın:
+            const subjectVideos = {};
+            document.querySelectorAll('.subject-video-url').forEach(input => {
+                if (input.value) {
+                    subjectVideos[input.dataset.subjectId] = input.value;
+                }
+            });
+            formData.append('subject_videos', JSON.stringify(subjectVideos));
 
             formData.append('questions', JSON.stringify(questionsData));
 

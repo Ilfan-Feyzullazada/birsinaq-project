@@ -132,13 +132,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
 
                         // Video izah üçün linkin hazırlanması
+                        // Köhnə let questionTitleHTML ... ilə başlayan bütün bloku silib, bunu yapışdırın:
+
                         let questionTitleHTML = `${index + 1}`;
-                        if (data.video_url && q.video_start_time) {
+
+                        // Fənnə aid video linkini yeni `subject_video_map` obyektindən axtarırıq
+                        const videoUrlForSubject = data.subject_video_map && data.subject_video_map[subjectData.subject_name];
+
+                        if (videoUrlForSubject && q.video_start_time) {
                             function getYouTubeID(url) {
                                 const arr = url.split(/(vi\/|v%3D|v=|\/v\/|youtu\.be\/|\/embed\/)/);
                                 return arr[2] !== undefined ? arr[2].split(/[?&]/)[0] : arr[0];
                             }
-                            const videoId = getYouTubeID(data.video_url);
+                            const videoId = getYouTubeID(videoUrlForSubject);
                             if (videoId) {
                                 let videoLink = `https://www.youtube.com/watch?v=${videoId}&t=${q.video_start_time}s`;
                                 questionTitleHTML = `<a href="${videoLink}" target="_blank" title="Videoizaha bax" style="text-decoration: none; color: inherit;">${index + 1} <i class="fas fa-play-circle"></i></a>`;

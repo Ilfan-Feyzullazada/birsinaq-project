@@ -214,7 +214,7 @@ class Exam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     price = db.Column(db.Float, nullable=False, default=0.0) # YENİ SAHƏ
-    video_url = db.Column(db.String(300), nullable=True) # YENİ SAHƏ
+    
 
     duration_minutes = db.Column(db.Integer, nullable=False)
     publish_date = db.Column(db.DateTime, nullable=True)
@@ -237,14 +237,16 @@ class Exam(db.Model):
 
 
 
+# Köhnə ExamSubject klassını silib, bunu yapışdırın
 class ExamSubject(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
     subject_id = db.Column(db.Integer, db.ForeignKey('subject.id'), nullable=False)
     weight = db.Column(db.Float, nullable=False, default=1.0)
+    video_url = db.Column(db.String(300), nullable=True) # <-- YENİ SÜTUN BURADADIR
+
     exam = db.relationship('Exam', back_populates='subjects')
     subject = db.relationship('Subject')
-
 # Submission klassının köhnə versiyasını silib, bunu yapışdırın
 class Submission(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -415,6 +417,31 @@ def create_exam():
         )
         db.session.add(new_exam)
         db.session.flush()
+        # db.session.flush() sətrindən dərhal sonra bu bloku əlavə edin:
+
+
+        subject_videos_str = data.get('subject_videos', '{}')
+        subject_videos = json.loads(subject_videos_str)
+
+
+        unique_subject_ids = {q_data.get('subject_id') for q_data in questions_data}
+
+        for subject_id in unique_subject_ids:
+            if subject_id: 
+             video_url_for_subject = subject_videos.get(str(subject_id))
+        # Əgər bu imtahan-fənn cütlüyü üçün artıq bir qeyd varsa, onu tapırıq
+             exam_subject_link = ExamSubject.query.filter_by(exam_id=new_exam.id, subject_id=subject_id).first()
+             if exam_subject_link:
+            # Əgər varsa, sadəcə video_url-i yeniləyirik
+                exam_subject_link.video_url = video_url_for_subject
+            else:
+            # Əgər yoxdursa, yenisini yaradırıq
+                new_exam_subject_link = ExamSubject(
+                exam_id=new_exam.id,
+                subject_id=subject_id,
+                video_url=video_url_for_subject
+            )
+            db.session.add(new_exam_subject_link)
 
         for idx, q_data in enumerate(questions_data):
             question_image_filename = None
@@ -1207,17 +1234,26 @@ def get_submission_result(submission_id):
 
     # Dəyişməz qalan hissə
     detailed_stats = calculate_detailed_score(submission)
+    # Köhnə return jsonify blokunu bununla tam əvəz edin:
+
+# Fənnlərə aid video linklərini hazırlayırıq
+    subject_video_map = {
+    es.subject.name: es.video_url 
+    for es in exam.subjects if es.video_url
+}
+
+    detailed_stats = calculate_detailed_score(submission)
     return jsonify({
-        'exam_title': submission.exam.title,
-        'exam_type': submission.exam.exam_type.name,
-        'exam_class': submission.exam.class_name.name,
-        'video_url': submission.exam.video_url,
-        'submission_date': submission.submitted_at.strftime('%Y-%m-%d %H:%M'),
-        'student_name': submission.user.name if submission.user else (submission.guest_name or "Qonaq"),
-        'results': final_ordered_results,
-        'stats': detailed_stats,
-        'time_spent': submission.time_spent_per_question
-    })
+    'exam_title': exam.title,
+    'exam_type': exam.exam_type.name,
+    'exam_class': exam.class_name.name,
+    'submission_date': submission.submitted_at.strftime('%Y-%m-%d %H:%M'),
+    'student_name': submission.user.name if submission.user else (submission.guest_name or "Qonaq"),
+    'results': final_ordered_results,
+    'stats': detailed_stats,
+    'time_spent': submission.time_spent_per_question,
+    'subject_video_map': subject_video_map # <-- Yeni əlavə edilən hissə
+})
 
 
 
@@ -2139,11 +2175,15 @@ def create_payment_order():
     data = request.get_json()
     exam_id = data.get('examId')
     exam = Exam.query.get(exam_id)
-    if not exam: return jsonify({'error': 'İmtahan tapılmadı'}), 404
 
-    user_id = current_user.id if current_user.is_authenticated and isinstance(current_user, User) else None
+    if not exam or exam.price <= 0:
+        return jsonify({'error': 'İmtahan tapılmadı və ya ödəniş tələb olunmur'}), 404
+
     guest_session_id = None
-    if not user_id:
+    user_id = None
+    if current_user.is_authenticated and isinstance(current_user, User):
+        user_id = current_user.id
+    else:
         if 'guest_session_id' not in session:
             session['guest_session_id'] = str(uuid.uuid4())
         guest_session_id = session.get('guest_session_id')
@@ -2151,39 +2191,56 @@ def create_payment_order():
             session['guest_name'] = data.get('guestName')
             session['guest_email'] = data.get('guestEmail')
 
-    # Sifarişi əvvəlcədən öz bazamızda yaradırıq
-    new_order = PaymentOrder(
-        exam_id=exam.id, user_id=user_id, guest_session_id=guest_session_id,
-        amount=exam.price, status='PENDING'
-    )
-    db.session.add(new_order)
-    db.session.commit()
-
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
 
+    # === URL-lərin DÜZGÜN TƏYİN EDİLDİYİ HİSSƏ ===
     callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
-    # İSTİFADƏÇİNİN YÖNLƏNƏCƏYİ "GÖZLƏMƏ OTAĞI"
-    redirect_url = url_for('serve_static_files', path='templates/payment-status.html', custom_order_id=new_order.id, examId=exam.id, _external=True, _scheme='https')
+    success_redirect_url = url_for('serve_static_files', path=f'exam-test.html', examId=exam.id, _external=True, _scheme='https')
+    failed_redirect_url = url_for('serve_static_files', path=f'exam-list.html?payment=failed', _external=True, _scheme='https')
 
+    # Payriff V3 API-sinə uyğun yeni sorğu formatı
     payload = {
-        "merchantId": merchant_id, "amount": float(exam.price), "currency": "AZN",
-        "description": f"'{exam.title}' imtahanı üçün ödəniş.", "callbackUrl": callback_url,
-        "successRedirectUrl": redirect_url, "failedRedirectUrl": redirect_url, "operation": "PURCHASE"
+        "merchantId": merchant_id,
+        "amount": float(exam.price),
+        "currency": "AZN",
+        "description": f"'{exam.title}' imtahanı üçün ödəniş.",
+        "callbackUrl": callback_url,
+        "successRedirectUrl": success_redirect_url,
+        "failedRedirectUrl": failed_redirect_url,
+        "operation": "PURCHASE",
+        "cardSave": False
     }
 
+    headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
+
     try:
-        response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers={'Content-Type': 'application/json', 'Authorization': secret_key})
+        response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers=headers)
         response.raise_for_status()
         payment_data = response.json()
 
         if payment_data.get('code') == '00000':
-            new_order.order_id_payriff = payment_data['payload']['orderId']
+            payriff_order_id = payment_data['payload']['orderId']
+            new_order = PaymentOrder(
+                order_id_payriff=payriff_order_id,
+                exam_id=exam.id,
+                user_id=user_id,
+                guest_session_id=guest_session_id,
+                amount=exam.price,
+                status='PENDING'
+            )
+            db.session.add(new_order)
             db.session.commit()
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
-            return jsonify({'error': payment_data.get('message', 'Payriff xətası')}), 500
+            print(f"!!! PAYRIFF LOGIC ERROR: {payment_data.get('message')}")
+            return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
+
     except Exception as e:
+        error_details = str(e)
+        if hasattr(e, 'response') and e.response is not None:
+            error_details = e.response.text
+        print(f"!!! PAYRIFF CRITICAL ERROR DETAILS: {error_details}")
         db.session.rollback()
         return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
 
@@ -2298,22 +2355,3 @@ def check_payment_for_exam(exam_id):
         return jsonify({"status": "ok", "message": "Access granted"}), 200
     else:
         return jsonify({"status": "error", "message": "Access denied"}), 403
-    
-    
-    
-@app.route('/api/check-order-status/<int:order_id>')
-def check_order_status(order_id):
-    order = PaymentOrder.query.get(order_id)
-    if not order:
-        return jsonify({'status': 'NOT_FOUND'}), 404
-
-    is_owner = (current_user.is_authenticated and order.user_id == current_user.id) or \
-               (not current_user.is_authenticated and order.guest_session_id == session.get('guest_session_id'))
-
-    if not is_owner:
-        return jsonify({'status': 'FORBIDDEN'}), 403
-
-    if order.status == 'APPROVED':
-        return jsonify({'status': order.status}), 200
-    else:
-        return jsonify({'status': order.status}), 404
