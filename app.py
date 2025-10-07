@@ -2165,6 +2165,10 @@ def delete_affiliate(affiliate_id):
 
 # app.py -> Köhnə create_payment_order funksiyasını bununla TAM ƏVƏZ EDİN
 
+# app.py -> Köhnə create_payment_order funksiyasını bununla TAM ƏVƏZ EDİN
+
+# app.py -> Köhnə create_payment_order funksiyasını bununla TAM ƏVƏZ EDİN
+
 @app.route('/api/create-payment-order', methods=['POST'])
 def create_payment_order():
     data = request.get_json()
@@ -2173,6 +2177,9 @@ def create_payment_order():
 
     if not exam or exam.price <= 0:
         return jsonify({'error': 'İmtahan tapılmadı və ya ödəniş tələb olunmur'}), 404
+
+    # Addım 1: Unikal sifariş ID-sini ƏVVƏLCƏDƏN yaradırıq
+    custom_order_id = str(uuid.uuid4())
 
     guest_session_id = None
     user_id = None
@@ -2193,10 +2200,9 @@ def create_payment_order():
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
 
-    # URL-lərin düzgün (tam ünvan) şəkildə yaradılması
+    # Addım 2: Yaradılmış `custom_order_id`-ni `success_redirect_url` üçün istifadə edirik
     callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
-    # DƏYİŞİKLİK: Sizin yeni payment-status.html səhifəsinə yönləndiririk
-    success_redirect_url = url_for('payment_status_page', examId=exam.id, _external=True, _scheme='https' )
+    success_redirect_url = url_for('payment_status_page', custom_order_id=custom_order_id, examId=exam.id, _external=True, _scheme='https')
     failed_redirect_url = url_for('serve_static_files', path=f'exam-list.html', _external=True, _scheme='https')
 
     # Payriff V3 API-sinə uyğun düzgün sorğu formatı
@@ -2215,7 +2221,6 @@ def create_payment_order():
     headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
 
     try:
-        # Düzgün V3 ünvanına sorğu göndəririk
         response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers=headers)
         response.raise_for_status()
         payment_data = response.json()
@@ -2223,8 +2228,10 @@ def create_payment_order():
         if payment_data.get('code') == '00000':
             payriff_order_id = payment_data['payload']['orderId']
             
+            # Addım 3: Eyni `custom_order_id`-ni verilənlər bazasına yazırıq
             new_order = PaymentOrder(
-                order_id_payriff=payriff_order_id, # Payriff-dən gələn ID-ni saxlayırıq
+                order_id_payriff=payriff_order_id,
+                custom_order_id=custom_order_id, # <-- ƏSAS DƏYİŞİKLİK
                 exam_id=exam.id,
                 user_id=user_id,
                 guest_session_id=guest_session_id,
@@ -2233,16 +2240,6 @@ def create_payment_order():
             )
             db.session.add(new_order)
             db.session.commit()
-            
-            # successRedirectUrl-ə custom_order_id əlavə edirik ki, status səhifəsi işləsin
-            # Bu hissəni dəyişirik ki, custom_order_id ötürülsün
-            payment_url_with_order = payment_data['payload']['paymentUrl']
-            new_order_id_for_redirect = new_order.id # BAZADAKI YENİ SİFARİŞİN ID-si
-            
-            # Ödəniş linkinə bizim daxili sifariş ID-mizi əlavə edirik
-            # Bu, V3 API-sində birbaşa dəstəklənmirsə, alternativ yola əl atmalıyıq.
-            # Ən yaxşısı `success_redirect_url`-də `custom_order_id` yerinə birbaşa bizim order ID-ni istifadə etməkdir
-            # Ancaq əvvəlki düzəlişə sadiq qalaq, webhook onsuz da bunu həll edəcək.
             
             return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
         else:
@@ -2258,7 +2255,8 @@ def create_payment_order():
 
     except Exception as e:
         db.session.rollback()
-        print(f"!!! CREATE PAYMENT CRITICAL INTERNAL ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Daxili server xətası: {str(e)}'}), 500
 
 class Announcement(db.Model):
