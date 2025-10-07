@@ -5,6 +5,8 @@ import uuid
 import click
 import requests
 import json
+import hmac
+import hashlib
 from flask import url_for
 from flask import redirect
 from datetime import datetime
