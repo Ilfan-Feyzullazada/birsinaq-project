@@ -98,6 +98,7 @@ class User(db.Model, UserMixin):
 class PaymentOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     order_id_payriff = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    custom_order_id = db.Column(db.String(100), unique=True, nullable=True, index=True)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     guest_session_id = db.Column(db.String(100), nullable=True)
