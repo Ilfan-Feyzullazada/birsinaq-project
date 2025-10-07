@@ -32,45 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 1. Ödənişi yoxlayan funksiya
     function checkPaymentAndLoadExam() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const examId = urlParams.get('examId');
-        const questionsBlock = document.getElementById('questions-block');
-        const examHeader = document.querySelector('.test-header');
-        const finishExamBtn = document.getElementById('finish-exam-btn');
-
-        if (!examId) {
-            if (questionsBlock) questionsBlock.innerHTML = `<h2 style="color: red; text-align: center;">İmtahan ID-si tapılmadı!</h2>`;
-            return;
-        }
-
-        if (examHeader) examHeader.style.display = 'none';
-        if (finishExamBtn) finishExamBtn.style.display = 'none';
-        if (questionsBlock) questionsBlock.innerHTML = `<div style="text-align: center; padding: 50px;"><h2>Ödənişiniz yoxlanılır...</h2></div>`;
-
-        let attempts = 0;
-        const maxAttempts = 4; // Təxminən 12 saniyə yoxlayır
-
-        const interval = setInterval(() => {
-            fetch(`/api/check-payment-for-exam/${examId}`, { credentials: 'include' })
-                .then(response => {
-                    if (response.ok) {
-                        clearInterval(interval);
-                        loadExamContent(); // Uğurlu olarsa, imtahanı yüklə
-                    } else {
-                        attempts++;
-                        if (attempts >= maxAttempts) {
-                            clearInterval(interval);
-                            if (examHeader) examHeader.style.display = 'flex';
-                            if (questionsBlock) questionsBlock.innerHTML = `<div style="text-align: center; padding: 50px; color: red;"><h2>Xəta</h2><p>Ödəniş təsdiqlənmədi.</p></div>`;
-                        }
-                    }
-                })
-                .catch(err => {
-                    clearInterval(interval);
-                    if (questionsBlock) questionsBlock.innerHTML = `<h2>Server xətası.</h2>`;
-                });
-        }, 3000);
-    }
+    loadExamContent();
+}
 
     // 2. İmtahanı yükləyən funksiya
     function loadExamContent() {

@@ -716,31 +716,6 @@ def get_exams_by_category():
 def get_exam_for_test(exam_id):
     exam = Exam.query.filter_by(id=exam_id, is_active=True).first_or_404("İmtahan tapılmadı və ya aktiv deyil.")
 
-    # --- TƏHLÜKƏSİZLİK YOXLAMASI BAŞLAYIR ---
-    has_access = False
-    
-    # 1. Əgər imtahan pulsuzdursa, hər kəsə icazə ver
-    if exam.price <= 0:
-        has_access = True
-    else:
-        # 2. Əgər istifadəçi qeydiyyatlıdırsa
-        if current_user.is_authenticated and isinstance(current_user, User):
-            # Təsdiqlənmiş ödənişi olub-olmadığını yoxla
-            paid_order = PaymentOrder.query.filter_by(user_id=current_user.id, exam_id=exam_id, status='APPROVED').first()
-            if paid_order:
-                has_access = True
-        
-        # 3. Əgər istifadəçi qonaqdırsa
-        elif 'guest_session_id' in session:
-            guest_session_id = session['guest_session_id']
-            # Bu sessiya üçün təsdiqlənmiş ödənişi yoxla
-            paid_order = PaymentOrder.query.filter_by(guest_session_id=guest_session_id, exam_id=exam_id, status='APPROVED').first()
-            if paid_order:
-                has_access = True
-
-    if not has_access:
-        return jsonify({"error": "Bu imtahanda iştirak etmək üçün ödəniş etməlisiniz."}), 403
-    # --- TƏHLÜKƏSİZLİK YOXLAMASI BİTİR ---
 
     # Qalan kod olduğu kimi qalır...
     try:
@@ -2194,7 +2169,7 @@ def create_payment_order():
         secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
 
         callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
-        success_redirect_url = url_for('payment_status_page', custom_order_id=custom_order_id, examId=exam.id, _external=True, _scheme='https')
+        success_redirect_url = url_for('serve_static_files', path=f'exam-test.html', examId=exam.id, _external=True, _scheme='https')
         failed_redirect_url = url_for('serve_static_files', path='exam-list.html', _external=True, _scheme='https')
 
         payload = {
