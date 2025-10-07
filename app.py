@@ -2203,7 +2203,7 @@ def create_payment_order():
 
     # Addım 2: Yaradılmış `custom_order_id`-ni `success_redirect_url` üçün istifadə edirik
     callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
-    success_redirect_url = url_for('payment_status_page', custom_order_id=custom_order_id, examId=exam.id, _external=True, _scheme='https')
+    success_redirect_url = url_for('serve_static_files', path=f'exam-test.html', examId=exam.id, _external=True, _scheme='https')
     failed_redirect_url = url_for('serve_static_files', path=f'exam-list.html', _external=True, _scheme='https')
 
     # Payriff V3 API-sinə uyğun düzgün sorğu formatı
