@@ -2331,3 +2331,124 @@ def check_order_status(custom_order_id):
         return jsonify({'status': 'NOT_FOUND'}), 404
         
     return jsonify({'status': order.status})
+
+
+
+
+
+
+# app.py faylının sonuna bu iki funksiyanı əlavə edin
+
+@app.route('/api/admin/exam/<int:exam_id>', methods=['GET'])
+@login_required
+def get_exam_for_edit(exam_id):
+    """ Redaktə üçün bir imtahanın bütün məlumatlarını çəkir """
+    if not isinstance(current_user, Admin):
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+
+    exam = Exam.query.get_or_404(exam_id)
+    
+    questions_data = []
+    for q in exam.questions:
+        questions_data.append({
+            'id': q.id,
+            'subject_id': q.subject_id,
+            'question_type': q.question_type,
+            'text': q.text,
+            'options': q.options,
+            'correct_answer': q.correct_answer,
+            'topic': q.topic,
+            'difficulty': q.difficulty,
+            'points': q.points,
+            'video_start_time': q.video_start_time
+        })
+    
+    subject_videos = {es.subject_id: es.video_url for es in exam.subjects}
+
+    exam_data = {
+        'id': exam.id,
+        'title': exam.title,
+        'examTypeId': exam.exam_type_id,
+        'classNameId': exam.class_name_id,
+        'duration': exam.duration_minutes,
+        'price': exam.price,
+        'questions': questions_data,
+        'subject_videos': subject_videos
+    }
+    return jsonify(exam_data)
+
+@app.route('/api/admin/exam/<int:exam_id>', methods=['PUT'])
+@login_required
+def update_exam(exam_id):
+    """ Mövcud imtahanı yeniləyir """
+    if not isinstance(current_user, Admin):
+        return jsonify({'message': 'Yetkiniz yoxdur'}), 403
+
+    exam = Exam.query.get_or_404(exam_id)
+    data = request.get_json()
+
+    try:
+        # Əsas imtahan məlumatlarını yeniləyirik
+        exam.title = data.get('title', exam.title)
+        exam.price = float(data.get('price', exam.price))
+        exam.duration_minutes = int(data.get('duration', exam.duration_minutes))
+        exam.exam_type_id = int(data.get('examTypeId', exam.exam_type_id))
+        exam.class_name_id = int(data.get('classNameId', exam.class_name_id))
+
+        # Fənn video linklərini yeniləyirik
+        subject_videos = data.get('subject_videos', {})
+        for subject_id, video_url in subject_videos.items():
+            exam_subject_link = ExamSubject.query.filter_by(exam_id=exam.id, subject_id=int(subject_id)).first()
+            if exam_subject_link:
+                exam_subject_link.video_url = video_url
+            elif video_url:
+                new_link = ExamSubject(exam_id=exam.id, subject_id=int(subject_id), video_url=video_url)
+                db.session.add(new_link)
+
+        # Sualları yeniləyirik (bu hissə mürəkkəbdir: yeniləmə, silmə, əlavə etmə)
+        questions_from_frontend = data.get('questions', [])
+        existing_question_ids = {q.id for q in exam.questions}
+        frontend_question_ids = {q.get('id') for q in questions_from_frontend if q.get('id')}
+
+        # Silinməli olan suallar
+        ids_to_delete = existing_question_ids - frontend_question_ids
+        if ids_to_delete:
+            Question.query.filter(Question.id.in_(ids_to_delete)).delete(synchronize_session=False)
+
+        for q_data in questions_from_frontend:
+            q_id = q_data.get('id')
+            if q_id: # Mövcud sualı yeniləyirik
+                question = Question.query.get(q_id)
+                if question:
+                    question.subject_id = q_data.get('subject_id')
+                    question.question_type = q_data.get('question_type')
+                    question.text = q_data.get('text')
+                    question.options = q_data.get('options')
+                    question.correct_answer = q_data.get('correct_answer')
+                    question.topic = q_data.get('topic')
+                    question.difficulty = q_data.get('difficulty')
+                    question.points = q_data.get('points')
+                    question.video_start_time = q_data.get('video_start_time')
+            else: # Yeni sual əlavə edirik
+                new_question = Question(
+                    exam_id=exam.id,
+                    subject_id=q_data.get('subject_id'),
+                    question_type=q_data.get('question_type'),
+                    text=q_data.get('text'),
+                    options=q_data.get('options'),
+                    correct_answer=q_data.get('correct_answer'),
+                    topic=q_data.get('topic'),
+                    difficulty=q_data.get('difficulty'),
+                    points=q_data.get('points'),
+                    video_start_time=q_data.get('video_start_time')
+                )
+                db.session.add(new_question)
+
+        db.session.commit()
+        return jsonify({'message': 'İmtahan uğurla yeniləndi!'})
+
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Xəta baş verdi: {str(e)}'}), 500

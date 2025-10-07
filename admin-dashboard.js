@@ -55,7 +55,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     exams.forEach(exam => {
                         const tr = document.createElement('tr');
-                        tr.innerHTML = `<td>${exam.name}</td><td>${exam.question_count}</td><td>${exam.is_active ? 'Aktiv' : 'Planlanmış'}</td><td class="actions"><button class="delete-btn" data-exam-id="${exam.id}">Sil</button></td>`;
+                        tr.innerHTML = `
+    <td>${exam.name}</td>
+    <td>${exam.question_count}</td>
+    <td>${exam.is_active ? 'Aktiv' : 'Planlanmış'}</td>
+    <td class="actions">
+        <button class="action-btn edit" onclick="window.location.href='admin-edit-exam.html?examId=${exam.id}'"><i class="fas fa-pencil-alt"></i> Redaktə</button>
+        <button class="action-btn delete delete-btn" data-exam-id="${exam.id}"><i class="fas fa-trash-alt"></i> Sil</button>
+    </td>`;
                         examsTableBody.appendChild(tr);
                     });
                 }
