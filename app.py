@@ -2170,58 +2170,55 @@ def delete_affiliate(affiliate_id):
 
 # app.py -> Köhnə create_payment_order funksiyasını bununla TAM ƏVƏZ EDİN
 
+# app.py -> Köhnə create_payment_order funksiyasını bununla TAM ƏVƏZ EDİN
+
 @app.route('/api/create-payment-order', methods=['POST'])
 def create_payment_order():
-    data = request.get_json()
-    exam_id = data.get('examId')
-    exam = Exam.query.get(exam_id)
-
-    if not exam or exam.price <= 0:
-        return jsonify({'error': 'İmtahan tapılmadı və ya ödəniş tələb olunmur'}), 404
-
-    # Addım 1: Unikal sifariş ID-sini ƏVVƏLCƏDƏN yaradırıq
-    custom_order_id = str(uuid.uuid4())
-
-    guest_session_id = None
-    user_id = None
-    description = f"'{exam.title}' imtahanı üçün ödəniş."
-
-    if current_user.is_authenticated and isinstance(current_user, User):
-        user_id = current_user.id
-        description += f" (İstifadəçi: {current_user.name})"
-    else:
-        if 'guest_session_id' not in session:
-            session['guest_session_id'] = str(uuid.uuid4())
-        guest_session_id = session.get('guest_session_id')
-        if data.get('guestName'):
-            session['guest_name'] = data.get('guestName')
-            session['guest_email'] = data.get('guestEmail')
-            description += f" (Qonaq: {data.get('guestName')})"
-
-    merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
-    secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
-
-    # Addım 2: Yaradılmış `custom_order_id`-ni `success_redirect_url` üçün istifadə edirik
-    callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
-    success_redirect_url = url_for('serve_static_files', path=f'exam-test.html', examId=exam.id, _external=True, _scheme='https')
-    failed_redirect_url = url_for('serve_static_files', path=f'exam-list.html', _external=True, _scheme='https')
-
-    # Payriff V3 API-sinə uyğun düzgün sorğu formatı
-    payload = {
-        "merchantId": merchant_id,
-        "amount": float(exam.price),
-        "currency": "AZN",
-        "description": description,
-        "callbackUrl": callback_url,
-        "successRedirectUrl": success_redirect_url,
-        "failedRedirectUrl": failed_redirect_url,
-        "operation": "PURCHASE",
-        "cardSave": False
-    }
-
-    headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
-
     try:
+        data = request.get_json()
+        exam_id = data.get('examId')
+        exam = Exam.query.get(exam_id)
+
+        if not exam or exam.price <= 0:
+            return jsonify({'error': 'İmtahan tapılmadı və ya ödəniş tələb olunmur'}), 404
+
+        custom_order_id = str(uuid.uuid4())
+        guest_session_id = None
+        user_id = None
+        description = f"'{exam.title}' imtahanı üçün ödəniş."
+
+        if current_user.is_authenticated and isinstance(current_user, User):
+            user_id = current_user.id
+            description += f" (İstifadəçi: {current_user.name})"
+        else:
+            if 'guest_session_id' not in session:
+                session['guest_session_id'] = str(uuid.uuid4())
+            guest_session_id = session.get('guest_session_id')
+            if data.get('guestName'):
+                session['guest_name'] = data.get('guestName')
+                session['guest_email'] = data.get('guestEmail')
+                description += f" (Qonaq: {data.get('guestName')})"
+
+        merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
+        secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
+
+        callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
+        success_redirect_url = url_for('payment_status_page', custom_order_id=custom_order_id, examId=exam.id, _external=True, _scheme='https')
+        failed_redirect_url = url_for('serve_static_files', path='exam-list.html', _external=True, _scheme='https')
+
+        payload = {
+            "merchantId": merchant_id,
+            "amount": float(exam.price),
+            "currency": "AZN",
+            "description": description,
+            "callbackUrl": callback_url,
+            "successRedirectUrl": success_redirect_url,
+            "failedRedirectUrl": failed_redirect_url,
+            "operation": "PURCHASE",
+            "cardSave": False
+        }
+
+        headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
         response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers=headers)
         response.raise_for_status()
         payment_data = response.json()
@@ -2229,10 +2226,9 @@ def create_payment_order():
         if payment_data.get('code') == '00000':
             payriff_order_id = payment_data['payload']['orderId']
             
-            # Addım 3: Eyni `custom_order_id`-ni verilənlər bazasına yazırıq
             new_order = PaymentOrder(
                 order_id_payriff=payriff_order_id,
-                custom_order_id=custom_order_id, # <-- ƏSAS DƏYİŞİKLİK
+                custom_order_id=custom_order_id,
                 exam_id=exam.id,
                 user_id=user_id,
                 guest_session_id=guest_session_id,
