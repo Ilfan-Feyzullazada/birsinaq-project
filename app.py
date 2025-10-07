@@ -5,8 +5,6 @@ import uuid
 import click
 import requests
 import json
-import hmac
-import hashlib
 from flask import url_for
 from flask import redirect
 from datetime import datetime
@@ -26,16 +24,7 @@ from sqlalchemy.dialects.sqlite import JSON as SQLJSON # Adların qarışmaması
 from flask_migrate import Migrate
 from werkzeug.utils import secure_filename
 
-def create_payriff_signature(payload_body_json_string, secret_key):
-    """
-    Payriff API üçün təhlükəsizlik imzası (HMAC-SHA256) yaradır.
-    """
-    signature = hmac.new(
-        secret_key.encode('utf-8'),
-        payload_body_json_string.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
-    return signature.upper()
+
 
 
 # --- Layihənin əsas qovluğunu təyin edirik ---
@@ -585,28 +574,31 @@ from flask import url_for, render_template
 
 
 
+# YUXARIDAKI KÖHNƏ payriff_webhook FUNKSİYASINI BUNUNLA ƏVƏZ EDİN:
+
 @app.route('/api/payriff/webhook', methods=['POST'])
 def payriff_webhook():
     data = request.get_json()
     print("--- PAYRIFF WEBHOOK RECEIVED ---", data)
 
     try:
-        payload = data.get('payload', {})
-        order_status = payload.get('status')
-        custom_order_id = data.get('orderID')
+        # Payriff V3 webhook formatına uyğun olaraq məlumatları alırıq
+        order_status = data.get('transactionStatus')
+        payriff_order_id = data.get('orderId')
 
-        if not order_status or not custom_order_id:
-            return jsonify({'status': 'error', 'message': 'Invalid payload'}), 400
+        if not order_status or not payriff_order_id:
+            print(f"--- WEBHOOK ERROR: Invalid V3 payload. Status: {order_status}, OrderID: {payriff_order_id}")
+            return jsonify({'status': 'error', 'message': 'Invalid V3 payload'}), 400
 
-        order = PaymentOrder.query.filter_by(custom_order_id=custom_order_id).first()
+        # Sifarişi Payriff-in göndərdiyi `orderId`-yə görə axtarırıq
+        order = PaymentOrder.query.filter_by(order_id_payriff=payriff_order_id).first()
         if not order:
-            print(f"--- WEBHOOK ERROR: Order with custom_order_id {custom_order_id} not found.")
+            print(f"--- WEBHOOK ERROR: Order with Payriff ID {payriff_order_id} not found.")
             return jsonify({'status': 'error', 'message': 'Order not found'}), 404
 
         if order.status == 'APPROVED':
             return jsonify({'status': 'ok', 'message': 'Already approved'}), 200
 
-        # === Addım 1: Statusu dərhal yenilə və yadda saxla ===
         if order_status == 'APPROVED':
             order.status = 'APPROVED'
             db.session.commit()
@@ -620,30 +612,29 @@ def payriff_webhook():
         print(f"--- WEBHOOK CRITICAL ERROR [Status Update Phase]: {str(e)}")
         return jsonify({'status': 'error', 'message': 'Internal server error during status update.'}), 500
 
-    # === Addım 2: Komissiyanı ayrıca, təhlükəsiz blokda hesabla ===
+    # Komissiya hesablanması (ayrı blokda)
     try:
-        user = User.query.get(order.user_id) if order.user_id else None
-        exam = order.exam
-        
-        if user and exam and exam.price > 0:
-            if user.organizer_id and not user.affiliate_id:
-                organizer = Organizer.query.get(user.organizer_id)
-                if organizer and organizer.commission_amount > 0:
-                    organizer.balance = (organizer.balance or 0) + organizer.commission_amount
+        if order.status == 'APPROVED':
+            user = User.query.get(order.user_id) if order.user_id else None
+            exam = order.exam
             
-            elif user.affiliate_id:
-                affiliate = Affiliate.query.get(user.affiliate_id)
-                if affiliate:
-                    if affiliate.commission_rate > 0:
-                        affiliate.balance = (affiliate.balance or 0) + affiliate.commission_rate
-                    if affiliate.parent_organizer and affiliate.parent_organizer.affiliate_commission > 0:
-                        affiliate.parent_organizer.balance = (affiliate.parent_organizer.balance or 0) + affiliate.parent_organizer.affiliate_commission
-            
-            db.session.commit()
+            if user and exam and exam.price > 0:
+                # Komissiya məntiqi burada... (bu hissə düzgündür)
+                if user.organizer_id and not user.affiliate_id:
+                    organizer = Organizer.query.get(user.organizer_id)
+                    if organizer and organizer.commission_amount > 0:
+                        organizer.balance = (organizer.balance or 0) + organizer.commission_amount
+                elif user.affiliate_id:
+                    affiliate = Affiliate.query.get(user.affiliate_id)
+                    if affiliate:
+                        if affiliate.commission_rate > 0:
+                            affiliate.balance = (affiliate.balance or 0) + affiliate.commission_rate
+                        if affiliate.parent_organizer and affiliate.parent_organizer.affiliate_commission > 0:
+                            affiliate.parent_organizer.balance = (affiliate.parent_organizer.balance or 0) + affiliate.parent_organizer.affiliate_commission
+                db.session.commit()
     except Exception as e:
         db.session.rollback()
         print(f"--- WEBHOOK WARNING [Commission Phase]: {str(e)}")
-        # Bu xəta istifadəçiyə təsir etmədiyi üçün sadəcə loglayırıq.
         
     return jsonify({'status': 'ok'}), 200
 
