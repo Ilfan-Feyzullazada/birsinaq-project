@@ -411,7 +411,6 @@ def create_exam():
             duration_minutes=data.get('duration'),
             exam_type_id=data.get('examTypeId'),
             class_name_id=data.get('classNameId'),
-            video_url=data.get('video_url'),
             is_active=(data.get('publishImmediately') == 'true'),
             publish_date=publish_date
         )
