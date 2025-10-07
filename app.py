@@ -2122,22 +2122,6 @@ def delete_affiliate(affiliate_id):
 
 
 
-# app.py -> Köhnə create_payment_order funksiyasını bununla əvəz edin
-
-# app.py -> Köhnə create_payment_order funksiyasını bununla ƏVƏZ EDİN
-
-# app.py faylına bu funksiyanı əlavə edin (köhnəsinin yerinə)
-
-# app.py -> Köhnə create_payment_order funksiyasını bununla tam əvəz edin
-
-# app.py -> Köhnə create_payment_order funksiyasını bununla TAM ƏVƏZ EDİN
-
-# app.py -> Köhnə create_payment_order funksiyasını bununla TAM ƏVƏZ EDİN
-
-# app.py -> Köhnə create_payment_order funksiyasını bununla TAM ƏVƏZ EDİN
-
-# app.py -> Köhnə create_payment_order funksiyasını bununla TAM ƏVƏZ EDİN
-
 @app.route('/api/create-payment-order', methods=['POST'])
 def create_payment_order():
     try:
@@ -2168,8 +2152,9 @@ def create_payment_order():
         merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
         secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
 
+        # DÜZGÜN URL-lər (Mötərizələr əlavə edildi)
         callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
-        success_redirect_url = url_for('serve_static_files', path=f'exam-test.html', examId=exam.id, _external=True, _scheme='https')
+        success_redirect_url = url_for('payment_status_page', custom_order_id=custom_order_id, examId=exam.id, _external=True, _scheme='https')
         failed_redirect_url = url_for('serve_static_files', path='exam-list.html', _external=True, _scheme='https')
 
         payload = {
