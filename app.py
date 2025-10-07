@@ -605,54 +605,69 @@ def check_payment_status(order_id):
             return jsonify({'status': 'PENDING'})
     return jsonify({'status': 'NOT_FOUND'}), 404
 
+# app.py -> Köhnə payriff_webhook funksiyasını bununla tam əvəz edin
+
 @app.route('/api/payriff/webhook', methods=['POST'])
 def payriff_webhook():
     data = request.get_json()
     print("--- PAYRIFF WEBHOOK RECEIVED ---", data)
 
     try:
-        payload = data.get('payload')
-        if not payload:
-            return jsonify({'status': 'error', 'message': 'Payload not found'}), 400
+        payload = data.get('payload', {})
+        order_status = payload.get('status')
+        custom_order_id = data.get('orderID')
 
-        order_status = payload.get('transactionStatus', payload.get('orderStatus')) # Bəzən fərqli adla gələ bilir
-        custom_order_id = payload.get('orderID') # Bizim göndərdiyimiz ID
+        if not order_status or not custom_order_id:
+            return jsonify({'status': 'error', 'message': 'Invalid payload'}), 400
 
         order = PaymentOrder.query.filter_by(custom_order_id=custom_order_id).first()
         if not order:
+            print(f"--- WEBHOOK ERROR: Order with custom_order_id {custom_order_id} not found.")
             return jsonify({'status': 'error', 'message': 'Order not found'}), 404
 
-        if order.status == 'APPROVED': # Artıq təsdiqlənibsə, təkrar əməliyyat etmə
+        if order.status == 'APPROVED':
             return jsonify({'status': 'ok', 'message': 'Already approved'}), 200
 
+        # === Addım 1: Statusu dərhal yenilə və yadda saxla ===
         if order_status == 'APPROVED':
             order.status = 'APPROVED'
-            exam = order.exam
-            
-            # Komissiya hesablanması
-            if exam and exam.price > 0:
-                user = User.query.get(order.user_id) if order.user_id else None
-                if user:
-                    if user.organizer_id and not user.affiliate_id:
-                        organizer = Organizer.query.get(user.organizer_id)
-                        if organizer:
-                            organizer.balance += organizer.commission_amount
-                    elif user.affiliate_id:
-                        affiliate = Affiliate.query.get(user.affiliate_id)
-                        if affiliate:
-                            affiliate.balance += affiliate.commission_rate
-                            if affiliate.parent_organizer:
-                                affiliate.parent_organizer.balance += affiliate.parent_organizer.affiliate_commission
+            db.session.commit()
         else:
             order.status = 'FAILED'
-
-        db.session.commit()
-        return jsonify({'status': 'ok'}), 200
-
+            db.session.commit()
+            return jsonify({'status': 'ok', 'message': 'Order status is not APPROVED.'}), 200
+            
     except Exception as e:
         db.session.rollback()
-        print(f"--- PAYRIFF WEBHOOK CRITICAL ERROR ---: {e}")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        print(f"--- WEBHOOK CRITICAL ERROR [Status Update Phase]: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'Internal server error during status update.'}), 500
+
+    # === Addım 2: Komissiyanı ayrıca, təhlükəsiz blokda hesabla ===
+    try:
+        user = User.query.get(order.user_id) if order.user_id else None
+        exam = order.exam
+        
+        if user and exam and exam.price > 0:
+            if user.organizer_id and not user.affiliate_id:
+                organizer = Organizer.query.get(user.organizer_id)
+                if organizer and organizer.commission_amount > 0:
+                    organizer.balance = (organizer.balance or 0) + organizer.commission_amount
+            
+            elif user.affiliate_id:
+                affiliate = Affiliate.query.get(user.affiliate_id)
+                if affiliate:
+                    if affiliate.commission_rate > 0:
+                        affiliate.balance = (affiliate.balance or 0) + affiliate.commission_rate
+                    if affiliate.parent_organizer and affiliate.parent_organizer.affiliate_commission > 0:
+                        affiliate.parent_organizer.balance = (affiliate.parent_organizer.balance or 0) + affiliate.parent_organizer.affiliate_commission
+            
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"--- WEBHOOK WARNING [Commission Phase]: {str(e)}")
+        # Bu xəta istifadəçiyə təsir etmədiyi üçün sadəcə loglayırıq.
+        
+    return jsonify({'status': 'ok'}), 200
 
 # --- STUDENT & GENERAL API ---
 @app.route('/api/profile')
@@ -2169,7 +2184,8 @@ def delete_affiliate(affiliate_id):
 
 # app.py faylına bu funksiyanı əlavə edin (köhnəsinin yerinə)
 
-# Köhnə create_payment_order funksiyasını silib, bunu yapışdırın
+# app.py -> Köhnə create_payment_order funksiyasını bununla tam əvəz edin
+
 @app.route('/api/create-payment-order', methods=['POST'])
 def create_payment_order():
     data = request.get_json()
@@ -2179,50 +2195,68 @@ def create_payment_order():
     if not exam or exam.price <= 0:
         return jsonify({'error': 'İmtahan tapılmadı və ya ödəniş tələb olunmur'}), 404
 
+    # Unikal sifariş ID-si yaradırıq
+    custom_order_id = str(uuid.uuid4())
+
     guest_session_id = None
     user_id = None
+    description = f"'{exam.title}' imtahanı üçün ödəniş."
+
     if current_user.is_authenticated and isinstance(current_user, User):
         user_id = current_user.id
+        description += f" (İstifadəçi: {current_user.name})"
     else:
         if 'guest_session_id' not in session:
             session['guest_session_id'] = str(uuid.uuid4())
-        guest_session_id = session.get('guest_session_id')
+        guest_session_id = session['guest_session_id']
         if data.get('guestName'):
             session['guest_name'] = data.get('guestName')
             session['guest_email'] = data.get('guestEmail')
+            description += f" (Qonaq: {data.get('guestName')})"
 
     merchant_id = os.environ.get('PAYRIFF_MERCHANT_ID')
     secret_key = os.environ.get('PAYRIFF_SECRET_KEY')
 
     # === URL-lərin DÜZGÜN TƏYİN EDİLDİYİ HİSSƏ ===
     callback_url = url_for('payriff_webhook', _external=True, _scheme='https')
-    success_redirect_url = url_for('serve_static_files', path=f'exam-test.html', examId=exam.id, _external=True, _scheme='https')
-    failed_redirect_url = url_for('serve_static_files', path=f'exam-list.html?payment=failed', _external=True, _scheme='https')
+    # DƏYİŞİKLİK: İstifadəçini birbaşa yeni status səhifəsinə yönləndiririk
+    success_redirect_url = url_for('payment_status_page', custom_order_id=custom_order_id, examId=exam.id, _external=True, _scheme='https')
+    failed_redirect_url = url_for('serve_static_files', path=f'exam-list.html', _external=True, _scheme='https')
 
-    # Payriff V3 API-sinə uyğun yeni sorğu formatı
-    payload = {
-        "merchantId": merchant_id,
-        "amount": float(exam.price),
-        "currency": "AZN",
-        "description": f"'{exam.title}' imtahanı üçün ödəniş.",
-        "callbackUrl": callback_url,
-        "successRedirectUrl": success_redirect_url,
-        "failedRedirectUrl": failed_redirect_url,
-        "operation": "PURCHASE",
-        "cardSave": False
+    payload_body = {
+        "body": {
+            "amount": float(exam.price),
+            "currencyType": "AZN",
+            "description": description,
+            "approveURL": success_redirect_url,
+            "cancelURL": failed_redirect_url,
+            "declineURL": failed_redirect_url
+        },
+        "header": {
+            "accept-language": "AZ",
+            "callbackURL": callback_url,
+            "ecommerce": "BIRSINAQ.AZ",
+            "merchant": merchant_id,
+            "orderID": custom_order_id,
+            "sessionID": str(uuid.uuid4()), # Hər dəfə unikal olmalıdır
+            "signature": ""
+        }
     }
+    
+    payload_body_json_string = json.dumps(payload_body['body'])
+    signature = create_payriff_signature(payload_body_json_string, secret_key)
+    payload_body['header']['signature'] = signature
 
-    headers = {'Content-Type': 'application/json', 'Authorization': secret_key}
-
+    headers = {'Content-Type': 'application/json'}
+    
     try:
-        response = requests.post("https://api.payriff.com/api/v3/orders", json=payload, headers=headers)
+        response = requests.post("https://api.payriff.com/api/v2/createOrder", json=payload_body, headers=headers)
         response.raise_for_status()
         payment_data = response.json()
 
         if payment_data.get('code') == '00000':
-            payriff_order_id = payment_data['payload']['orderId']
             new_order = PaymentOrder(
-                order_id_payriff=payriff_order_id,
+                custom_order_id=custom_order_id, # Bizim yaratdığımız unikal ID
                 exam_id=exam.id,
                 user_id=user_id,
                 guest_session_id=guest_session_id,
@@ -2231,16 +2265,11 @@ def create_payment_order():
             )
             db.session.add(new_order)
             db.session.commit()
-            return jsonify({'paymentUrl': payment_data['payload']['paymentUrl']})
+            return jsonify({'paymentUrl': payment_data['payload']['paymentURL']})
         else:
-            print(f"!!! PAYRIFF LOGIC ERROR: {payment_data.get('message')}")
             return jsonify({'error': payment_data.get('message', 'Payriff tərəfindən naməlum xəta')}), 500
 
     except Exception as e:
-        error_details = str(e)
-        if hasattr(e, 'response') and e.response is not None:
-            error_details = e.response.text
-        print(f"!!! PAYRIFF CRITICAL ERROR DETAILS: {error_details}")
         db.session.rollback()
         return jsonify({'error': f'Xəta baş verdi: {str(e)}'}), 500
 
@@ -2355,3 +2384,24 @@ def check_payment_for_exam(exam_id):
         return jsonify({"status": "ok", "message": "Access granted"}), 200
     else:
         return jsonify({"status": "error", "message": "Access denied"}), 403
+    
+    
+    
+    
+    
+    # app.py -> Faylın ən sonuna əlavə edin
+
+@app.route('/payment-status')
+def payment_status_page():
+    custom_order_id = request.args.get('custom_order_id')
+    examId = request.args.get('examId')
+    return render_template('payment-status.html', custom_order_id=custom_order_id, examId=examId)
+
+@app.route('/api/check-order-status/<custom_order_id>')
+def check_order_status(custom_order_id):
+    order = PaymentOrder.query.filter_by(custom_order_id=custom_order_id).first()
+    
+    if not order:
+        return jsonify({'status': 'NOT_FOUND'}), 404
+        
+    return jsonify({'status': order.status})
