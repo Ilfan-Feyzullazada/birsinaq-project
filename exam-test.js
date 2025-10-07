@@ -31,11 +31,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // === YENİ KOD BAŞLAYIR ===
 
     // 1. Ödənişi yoxlayan funksiya
-    function checkPaymentAndLoadExam() {
-    loadExamContent();
-}
+    // exam-test.js -> Köhnə checkPaymentAndLoadExam funksiyasını bununla əvəz edin
 
-    // 2. İmtahanı yükləyən funksiya
+    function checkPaymentAndLoadExam() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const examId = urlParams.get('examId');
+        const questionsBlock = document.getElementById('questions-block');
+
+        if (!examId) {
+            if (questionsBlock) questionsBlock.innerHTML = `<h2 style="color: red; text-align: center;">İmtahan ID-si tapılmadı!</h2>`;
+            return;
+        }
+
+        // Birbaşa imtahanı yükləməyə cəhd edirik
+        loadExamContent();
+    }
+
+    // exam-test.js -> Köhnə loadExamContent funksiyasını bununla əvəz edin
+
     function loadExamContent() {
         const urlParams = new URLSearchParams(window.location.search);
         const examId = urlParams.get('examId');
@@ -47,30 +60,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (examHeader) examHeader.style.display = 'flex';
         if (finishExamBtn) finishExamBtn.style.display = 'block';
+        if (questionsBlock) questionsBlock.innerHTML = `<p style="text-align: center;">İmtahan yüklənir...</p>`;
 
+        // Profil məlumatlarını çəkirik
         fetch(`/api/profile`, { credentials: 'include' })
             .then(res => res.ok ? res.json() : null)
             .then(profileData => {
                 if (studentNameEl) studentNameEl.innerText = profileData ? profileData.name : "Qonaq";
             });
 
+        // Birbaşa imtahanı yükləyirik (təhlükəsizlik yoxlamasını atlayaraq)
         fetch(`/api/exam-test/${examId}`, { credentials: 'include' })
             .then(res => {
                 if (res.ok) {
                     return res.json();
                 } else {
+                    // Əgər server 403 (icazə yoxdur) xətası qaytarsa, bu, bizim ləğv etdiyimiz
+                    // təhlükəsizlik yoxlamasının hələ də aktiv olduğunu göstərir.
+                    // Amma biz bu yoxlamanı ləğv etdiyimiz üçün bu blok işə düşməməlidir.
                     return res.json().then(err => Promise.reject(err.error || 'İmtahanı yükləmək mümkün olmadı.'));
                 }
             })
             .then(data => {
                 if (examTitleEl) examTitleEl.textContent = data.title;
-                // Bu funksiyalar sizin faylınızın qalan hissəsində onsuz da mövcuddur
                 startTimer(data.duration);
-                renderExam(data);
+                renderExam(data); // Bu funksiya sualları ekrana çəkir
             })
             .catch(error => {
                 if (questionsBlock) {
-                    questionsBlock.innerHTML = `<h2>Xəta: ${error}</h2>`;
+                    questionsBlock.innerHTML = `<h2 style="text-align:center; color:red;">Xəta: ${error}</h2>`;
                 }
             });
     }
