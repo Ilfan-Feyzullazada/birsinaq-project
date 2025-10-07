@@ -425,22 +425,24 @@ def create_exam():
 
         unique_subject_ids = {q_data.get('subject_id') for q_data in questions_data}
 
+        # ... create_exam funksiyasının içində ...
         for subject_id in unique_subject_ids:
             if subject_id: 
-             video_url_for_subject = subject_videos.get(str(subject_id))
-        # Əgər bu imtahan-fənn cütlüyü üçün artıq bir qeyd varsa, onu tapırıq
-             exam_subject_link = ExamSubject.query.filter_by(exam_id=new_exam.id, subject_id=subject_id).first()
-             if exam_subject_link:
-            # Əgər varsa, sadəcə video_url-i yeniləyirik
-                exam_subject_link.video_url = video_url_for_subject
-            else:
-            # Əgər yoxdursa, yenisini yaradırıq
-                new_exam_subject_link = ExamSubject(
-                exam_id=new_exam.id,
-                subject_id=subject_id,
-                video_url=video_url_for_subject
-            )
-            db.session.add(new_exam_subject_link)
+                video_url_for_subject = subject_videos.get(str(subject_id))
+                exam_subject_link = ExamSubject.query.filter_by(exam_id=new_exam.id, subject_id=subject_id).first()
+                
+                if exam_subject_link:
+                    # Mövcud obyekti yeniləyirik (bunun üçün add etməyə ehtiyac yoxdur)
+                    exam_subject_link.video_url = video_url_for_subject
+                else:
+                    # Yalnız yeni obyekt yaradıldıqda onu session-a əlavə edirik
+                    new_exam_subject_link = ExamSubject(
+                        exam_id=new_exam.id,
+                        subject_id=subject_id,
+                        video_url=video_url_for_subject
+                    )
+                    db.session.add(new_exam_subject_link) # <--- DÜZGÜN YERİ BURADIR
+# ...
 
         for idx, q_data in enumerate(questions_data):
             question_image_filename = None
