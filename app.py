@@ -579,33 +579,7 @@ def get_exam_meta():
 
 from flask import url_for, render_template
 
-@app.route('/payment-status')
-def payment_status_page():
-    """
-    İstifadəçini ödənişdən sonra yönləndirdiyimiz səhifə.
-    Bu səhifə arxa planda statusu yoxlayacaq.
-    """
-    order_id = request.args.get('orderID')
-    return render_template('payment-status.html', orderID=order_id)
 
-@app.route('/api/check-payment-status/<order_id>')
-def check_payment_status(order_id):
-    """
-    JavaScript tərəfindən statusu yoxlamaq üçün çağırılan ünvan.
-    """
-    order = PaymentOrder.query.filter_by(custom_order_id=order_id).first()
-    if order:
-        if order.status == 'APPROVED':
-            # Ödəniş uğurludursa, imtahana yönlənmək üçün URL qaytarırıq
-            exam_url = url_for('serve_static_files', path=f'exam-test.html?examId={order.exam_id}')
-            return jsonify({'status': 'APPROVED', 'redirectUrl': exam_url})
-        elif order.status == 'FAILED':
-            return jsonify({'status': 'FAILED'})
-        else: # Hələ də PENDING-dir
-            return jsonify({'status': 'PENDING'})
-    return jsonify({'status': 'NOT_FOUND'}), 404
-
-# app.py -> Köhnə payriff_webhook funksiyasını bununla tam əvəz edin
 
 @app.route('/api/payriff/webhook', methods=['POST'])
 def payriff_webhook():
