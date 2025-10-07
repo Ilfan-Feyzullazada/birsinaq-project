@@ -574,7 +574,7 @@ from flask import url_for, render_template
 
 
 
-# YUXARIDAKI KÖHNƏ payriff_webhook FUNKSİYASINI BUNUNLA ƏVƏZ EDİN:
+# app.py -> Köhnə payriff_webhook funksiyasını bununla TAM ƏVƏZ EDİN
 
 @app.route('/api/payriff/webhook', methods=['POST'])
 def payriff_webhook():
@@ -582,7 +582,7 @@ def payriff_webhook():
     print("--- PAYRIFF WEBHOOK RECEIVED ---", data)
 
     try:
-        # Payriff V3 webhook formatına uyğun olaraq məlumatları alırıq
+        # DÜZƏLİŞ: Payriff V3 formatına uyğun olaraq məlumatları birbaşa alırıq
         order_status = data.get('transactionStatus')
         payriff_order_id = data.get('orderId')
 
@@ -590,7 +590,6 @@ def payriff_webhook():
             print(f"--- WEBHOOK ERROR: Invalid V3 payload. Status: {order_status}, OrderID: {payriff_order_id}")
             return jsonify({'status': 'error', 'message': 'Invalid V3 payload'}), 400
 
-        # Sifarişi Payriff-in göndərdiyi `orderId`-yə görə axtarırıq
         order = PaymentOrder.query.filter_by(order_id_payriff=payriff_order_id).first()
         if not order:
             print(f"--- WEBHOOK ERROR: Order with Payriff ID {payriff_order_id} not found.")
@@ -602,6 +601,7 @@ def payriff_webhook():
         if order_status == 'APPROVED':
             order.status = 'APPROVED'
             db.session.commit()
+            print(f"--- WEBHOOK SUCCESS: Order {order.id} status updated to APPROVED.")
         else:
             order.status = 'FAILED'
             db.session.commit()
@@ -619,7 +619,6 @@ def payriff_webhook():
             exam = order.exam
             
             if user and exam and exam.price > 0:
-                # Komissiya məntiqi burada... (bu hissə düzgündür)
                 if user.organizer_id and not user.affiliate_id:
                     organizer = Organizer.query.get(user.organizer_id)
                     if organizer and organizer.commission_amount > 0:
@@ -632,6 +631,7 @@ def payriff_webhook():
                         if affiliate.parent_organizer and affiliate.parent_organizer.affiliate_commission > 0:
                             affiliate.parent_organizer.balance = (affiliate.parent_organizer.balance or 0) + affiliate.parent_organizer.affiliate_commission
                 db.session.commit()
+                print(f"--- Commission calculated for order {order.id} ---")
     except Exception as e:
         db.session.rollback()
         print(f"--- WEBHOOK WARNING [Commission Phase]: {str(e)}")
